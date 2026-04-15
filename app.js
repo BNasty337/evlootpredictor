@@ -509,7 +509,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             }
         }
 
-        return { items, nextSeed: rng.range(0, 2147483647), whatIfItems, keyDropsAt,keyDropsAt2 };
+        return { items, nextSeed: rng.range(0, 2147483648), whatIfItems, keyDropsAt,keyDropsAt2 };
     }
 
     function simulateChestOpening(seed, config, eventType = null) {
@@ -524,14 +524,14 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
         if (config.title === 'Pet Box') {
             items.push({ name: '150 Pet Food', typeRoll: 'Guaranteed', itemRoll: '150', baseName: 'PetFood', rarity: 'common' });
         }
-        return { items, nextSeed: rng.range(0, 2147483647) };
+        return { items, nextSeed: rng.range(0, 2147483648) };
     }
 
     function simulateEggOpening(seed, rarity) {
         const rng = new UnityRandom(seed); const pool = ITEM_POOLS[rarity + 'Pet'] || [];
         const itemRoll = rng.range(0, pool.length);
         const baseName = pool[itemRoll]; const itemName = `Pet: ${baseName} (${rarity})`;
-        return { items: [{ name: itemName, typeRoll: 'N/A', itemRoll, baseName, rarity }], nextSeed: rng.range(0, 2147483647) };
+        return { items: [{ name: itemName, typeRoll: 'N/A', itemRoll, baseName, rarity }], nextSeed: rng.range(0, 2147483648) };
     }
 
     // Helper function to get XP for an item
