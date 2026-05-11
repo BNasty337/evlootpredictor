@@ -512,6 +512,52 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
         return { items, nextSeed: rng.range(0, 2147483648), whatIfItems, keyDropsAt,keyDropsAt2 };
     }
 
+    const DISCOVERY_CONFIG = {
+        0: { width: 3, height: 3, fruits: 3 },
+        1: { width: 4, height: 4, fruits: 4 },
+        2: { width: 5, height: 5, fruits: 5 },
+        3: { width: 5, height: 6, fruits: 6 },
+        4: { width: 5, height: 7, fruits: 6 }
+    };
+
+    function simulateDiscoveryEventFromRNG(rng) {
+        const allLevels = [];
+        
+        for (let l = 0; l <= 4; l++) {
+            const config = DISCOVERY_CONFIG[l];
+            const gridSize = config.width * config.height;
+            const stages = [];
+            
+            for (let s = 0; s < config.fruits; s++) {
+                // 1. Shuffle
+                const grid = Array.from({length: gridSize}, (_, i) => i);
+                for (let i = 0; i < grid.length; i++) {
+                    const r = rng.range(i, grid.length);
+                    [grid[i], grid[r]] = [grid[r], grid[i]];
+                }
+                
+                // 2. Fruit/Gem Search
+                const fruitShufflePos = rng.range(0, gridSize);
+                let gemShufflePos = rng.range(0, gridSize);
+                while (gemShufflePos === fruitShufflePos) {
+                    gemShufflePos = rng.range(0, gridSize);
+                }
+                
+                stages.push({
+                    stage: s + 1,
+                    type: 'shuffle', // Defaulting to shuffle for all for now to find patterns
+                    shuffle: [...grid],
+                    fruitShufflePos,
+                    gemShufflePos,
+                    width: config.width,
+                    height: config.height
+                });
+            }
+            allLevels.push({ level: l, stages: stages });
+        }
+        return allLevels;
+    }
+
     function simulateChestOpening(seed, config, eventType = null) {
         const rng = new UnityRandom(seed); const items = [];
     
@@ -560,7 +606,16 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
     function getCardElements(card) {
         return {
-            cardId: card.dataset.cardId, seedInput: card.querySelector('.seed-input'), levelInput: card.querySelector('.level-input'), vaultInput: card.querySelector('.vault-percentage-input'), resultsDiv: card.querySelector('.results-container'), counterSpan: card.querySelector('.counter'), xpCounter: card.querySelector('.xp-counter'), petfoodCounter: card.querySelector('.petfood-counter'), toggleBtn: card.querySelector('.toggle-btn'),
+            cardId: card.dataset.cardId, 
+            seedInput: card.querySelector('.seed-input'), 
+            levelInput: card.querySelector('.level-input'), 
+            vaultInput: card.querySelector('.vault-percentage-input'), 
+            fruitsFoundInput: card.querySelector('.fruits-found-input'),
+            resultsDiv: card.querySelector('.results-container'), 
+            counterSpan: card.querySelector('.counter'), 
+            xpCounter: card.querySelector('.xp-counter'), 
+            petfoodCounter: card.querySelector('.petfood-counter'), 
+            toggleBtn: card.querySelector('.toggle-btn'),
             whatIfBtn: card.querySelector('button[data-action="toggle-what-if"]') 
         };
     }
@@ -577,6 +632,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                 const seedForThisAction = currentSeed;
                 let result;
                 if (action.type === 'egg') { result = simulateEggOpening(currentSeed, action.rarity); } 
+                else if (action.type === 'discovery') { result = simulateDiscoveryEvent(currentSeed, action.level); }
                 else if (action.type.startsWith('adventure')) { result = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage,action.type); } 
                 else { const config = LOOT_TABLES[action.type === 'event' ? 'event' : action.type]; result = simulateChestOpening(currentSeed, config, action.eventType); }
                 result.items.forEach(item => {
@@ -649,10 +705,58 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             let title = res.title;
             if (!title) {
                 if (res.type === 'egg') title = `${res.rarity} Egg`;
-                else if (res.type .startsWith('adventure')) title = `${res.eventType} Box (Lvl ${res.level})`;
-                else { const config = LOOT_TABLES[res.type === 'event' ? 'event' : res.type]; title = res.eventType ? `Event: ${res.eventType}` : config.title; }
+                else if (res.type === 'discovery') title = `Discovery Lvl ${res.level}`;
+                else if (res.type.startsWith('adventure')) title = `${res.eventType} Box (Lvl ${res.level})`;
+                else { 
+                    const config = LOOT_TABLES[res.type === 'event' ? 'event' : res.type]; 
+                    title = res.eventType ? `Event: ${res.eventType}` : (config ? config.title : 'Unknown'); 
+                }
             }
             const historyIndex = state.history.length - (resultsToShow.length - 1) + index;
+            
+            if (res.type === 'discovery') {
+                const runsHtml = res.runs.map((run, runIdx) => `
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-apple-alt"></i> Found</span>
+                        <input type="number" class="fruits-found-input form-control" placeholder="Fruits already found" value="0" min="0" max="6">
+                    </div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-redo"></i> RNG Offset</span>
+                        <input type="number" class="rng-offset-input form-control" placeholder="Manual Roll Shift" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-white-50 small mb-1">Run ${runIdx + 1}</div>
+                        <div style="display: grid; grid-template-columns: repeat(${run.width}, 30px); gap: 3px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px; width: fit-content; margin: 0 auto;">
+                            ${Array.from({ length: run.width * run.height }).map((_, i) => {
+                                let style = "background: rgba(255,255,255,0.05);";
+                                let icon = "";
+                                if (i === run.fruitPos) {
+                                    style = "background: #4caf50; box-shadow: 0 0 8px #4caf50;";
+                                    icon = '<i class="fas fa-apple-alt" style="font-size: 14px;"></i>';
+                                } else if (run.gemPositions.includes(i)) {
+                                    style = "background: #2196f3;";
+                                    icon = '<i class="fas fa-gem" style="font-size: 14px;"></i>';
+                                }
+                                return `<div style="width: 30px; height: 30px; ${style} border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">${icon || i}</div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                `).join('');
+
+                entryDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-warning"><i class="fas fa-search me-1"></i>Discovery Lvl ${res.level} #${historyIndex}</h6>
+                        <small class="text-light">Seed: ${res.usedSeed}</small>
+                    </div>
+                    <hr class="my-2">
+                    <div class="discovery-results d-flex flex-wrap gap-3 justify-content-center">
+                        ${runsHtml}
+                    </div>
+                    <hr class="my-2">
+                    <small class="text-success"><i class="fas fa-arrow-right me-1"></i>Next Seed: ${res.nextSeed}</small>`;
+                resultsDiv.prepend(entryDiv);
+                return;
+            }
 
             let whatIfHtml = '';
             if (res.type.startsWith('adventure') && state.isWhatIfVisible) {
@@ -677,8 +781,10 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             entryDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0 text-warning"><i class="fas fa-treasure-chest me-1"></i>${title} #${historyIndex}</h6><small class="text-light">Seed: ${res.usedSeed}</small></div><hr class="my-2"><div class="row row-cols-3 g-2" style="justify-content: center;">${itemsHtml}</div>${chestXpDisplay}${whatIfHtml}<hr class="my-2"><small class="text-success"><i class="fas fa-arrow-right me-1"></i>Next Seed: ${res.nextSeed}</small>`;
             resultsDiv.prepend(entryDiv);
         });
-        toggleBtn.style.display = state.history.length > 1 ? 'inline-block' : 'none';
-        toggleBtn.innerHTML = state.isHistoryVisible ? '<i class="fas fa-eye-slash me-1"></i>Hide History' : '<i class="fas fa-eye me-1"></i>Show History';
+        if (toggleBtn) {
+            toggleBtn.style.display = state.history.length > 1 ? 'inline-block' : 'none';
+            toggleBtn.innerHTML = state.isHistoryVisible ? '<i class="fas fa-eye-slash me-1"></i>Hide History' : '<i class="fas fa-eye me-1"></i>Show History';
+        }
 
         if (cardId === 'pet') {
             updateAndDisplayEggCounters();
@@ -1321,7 +1427,101 @@ function updateSmartFindButton() {
     }
 }
 
-// In app.js, modifica la funzione openSmartFindModal
+// Discovery Event Map Logic
+function handleDiscoveryMap(cardId) {
+    const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+    const { seedInput, levelInput, fruitsFoundInput } = getCardElements(card);
+    const rngOffsetInput = card.querySelector('.rng-offset-input');
+    
+    const rootSeed = parseInt(seedInput.value, 10);
+    const currentLevel = parseInt(levelInput.value, 10);
+    const fruitsFound = parseInt(fruitsFoundInput.value, 10) || 0;
+    const manualOffset = parseInt(rngOffsetInput.value, 10) || 0;
+    
+    if (isNaN(rootSeed)) { toastr["error"]("Please enter a Seed!", "Error"); return; }
+    
+    const modal = document.getElementById('discoveryModal');
+    const content = document.getElementById('discoveryModalContent');
+    
+    const rng = new UnityRandom(rootSeed);
+    for(let i=0; i<manualOffset; i++) rng.range(0, 100);
+
+    const eventData = simulateDiscoveryEventFromRNG(rng);
+    
+    content.innerHTML = '';
+    eventData.forEach(levelData => {
+            const levelSection = document.createElement('div');
+            levelSection.className = 'level-section w-100 mb-5';
+            
+            let levelHtml = `
+                <div class="d-flex align-items-center mb-4">
+                    <h3 class="text-warning mb-0"><i class="fas fa-layer-group me-2"></i>LEVEL ${levelData.level}</h3>
+                    <div class="ms-3 flex-grow-1" style="height: 2px; background: linear-gradient(to right, rgba(255,193,7,0.5), transparent);"></div>
+                </div>
+                <div class="d-flex flex-wrap gap-4 justify-content-center">
+            `;
+            
+            levelData.stages.forEach(stageData => {
+                let isCompleted = (levelData.level < currentLevel) || (levelData.level === currentLevel && stageData.stage <= fruitsFound);
+                let opacity = isCompleted ? '0.4' : '1';
+                let borderStyle = isCompleted ? 'border: 1px dashed rgba(255,255,255,0.1)' : 'border: 1px solid rgba(255,255,255,0.2)';
+
+                let stageBoxHtml = `
+                    <div class="discovery-run-box p-3 rounded" style="background: rgba(255,255,255,0.05); ${borderStyle}; opacity: ${opacity}; min-width: 250px; transition: all 0.3s;">
+                        <h5 class="text-success mb-3 text-center"><i class="fas fa-apple-alt me-2"></i>Run ${stageData.stage}</h5>
+                        <div style="display: grid; grid-template-columns: repeat(${stageData.width}, 50px); gap: 8px; margin: 0 auto; width: fit-content; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px;">
+                `;
+                
+                for (let uiIdx = 0; uiIdx < stageData.width * stageData.height; uiIdx++) {
+                    const row = Math.floor(uiIdx / stageData.width);
+                    const col = uiIdx % stageData.width;
+                    const gameIdx = (stageData.height - 1 - row) * stageData.width + col;
+                    const shufflePos = stageData.shuffle ? stageData.shuffle.indexOf(gameIdx) : -1;
+                    
+                    let bgColor = 'rgba(255, 255, 255, 0.03)';
+                    let icon = '';
+
+                    // Predicted rewards based on the RNG rolls
+                    if (stageData.type === 'shuffle') {
+                        if (shufflePos === stageData.fruitShufflePos) {
+                            bgColor = 'rgba(241, 196, 15, 0.4)';
+                            icon = '<i class="fas fa-apple-alt text-warning"></i>';
+                        } else if (shufflePos === stageData.gemShufflePos) {
+                            bgColor = 'rgba(155, 89, 182, 0.4)';
+                            icon = '<i class="fas fa-gem text-info"></i>';
+                        }
+                    } else {
+                        // Generation Mode (Level 1+)
+                        if (gameIdx === stageData.fruitPos) {
+                            bgColor = 'rgba(241, 196, 15, 0.4)';
+                            icon = '<i class="fas fa-apple-alt text-warning"></i>';
+                        } else if (stageData.gemPositions.includes(gameIdx)) {
+                            bgColor = 'rgba(155, 89, 182, 0.4)';
+                            icon = '<i class="fas fa-gem text-info"></i>';
+                        }
+                    }
+
+                    stageBoxHtml += `
+                        <div class="discovery-tile" style="width: 50px; height: 50px; background: ${bgColor}; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; cursor: help;" title="Shuffle Pos: ${shufflePos}">
+                            <small style="position: absolute; top: 1px; left: 2px; font-size: 8px; opacity: 0.3;">${uiIdx}</small>
+                            <small style="position: absolute; bottom: 1px; right: 2px; font-size: 8px; opacity: 0.3;">${gameIdx}</small>
+                        <div style="font-size: 16px;">${icon || (shufflePos >= 0 ? '<span style="opacity: 0.1; font-size: 10px;">' + shufflePos + '</span>' : '')}</div>
+                        </div>
+                    `;
+                }
+                
+                stageBoxHtml += `</div></div>`;
+                levelHtml += stageBoxHtml;
+            });
+            
+            levelHtml += `</div>`;
+            levelSection.innerHTML = levelHtml;
+            content.appendChild(levelSection);
+        });
+        
+        modal.style.display = 'flex';
+    }
+
 function openSmartFindModal(cardId) {
     currentSearchMode = 'smart';
     currentSearchCard = cardId;
@@ -1622,6 +1822,7 @@ function openSmartFindModal(cardId) {
             return; 
         }
         if (action === 'local-search') { openLocalSearch(cardId); return; }
+        if (action === 'discovery-map') { handleDiscoveryMap(cardId); return; }
         if (action === 'pet-food-calculator') {
              document.getElementById('petFoodModal').style.display = 'flex';
               document.getElementById('petFoodResults').style.display = 'none';
@@ -1638,6 +1839,10 @@ function openSmartFindModal(cardId) {
              if (state.initialSeed === null) {state.initialSeed = seedFromInput; }
             const { chestType, eventType, rarity } = button.dataset;
             let level = null, vaultPercentage = 0;
+            if (chestType === 'discovery') {
+                level = parseInt(levelInput.value, 10);
+                if (isNaN(level) || level < 0 || level > 4) { toastr["error"]("Please enter a valid Level (0-4).", "Error"); return; }
+            }
             if (chestType.startsWith('adventure')) {
                 level = parseInt(levelInput.value, 10);
                 if (isNaN(level) || level < 1 || level > 100) { toastr["error"]("Please enter a valid Level (1-100).", "Error"); return; }
@@ -1673,17 +1878,183 @@ function openSmartFindModal(cardId) {
 
    document.getElementById('toggleTutorial').addEventListener('click', function() {
         var tutorialCard = document.getElementById('tutorialCard');
-        if (tutorialCard.style.display === 'none') { tutorialCard.style.display = 'block'; this.textContent = 'Hide Tutorial'; } 
-        else { tutorialCard.style.display = 'none'; this.textContent = 'Show Tutorial'; }
+        if (tutorialCard.style.display === 'none') { 
+            tutorialCard.style.display = 'block'; 
+            this.textContent = 'Hide Tutorial'; 
+        } else { 
+            tutorialCard.style.display = 'none'; 
+            this.textContent = 'Show Tutorial'; 
+        }
     });
+
+    document.getElementById('showAndroidTutorial').addEventListener('click', function() {
+        document.getElementById('androidTutorial').style.display = 'block';
+        document.getElementById('iosTutorial').style.display = 'none';
+        this.classList.add('active');
+        document.getElementById('showIosTutorial').classList.remove('active');
+    });
+
+    document.getElementById('showIosTutorial').addEventListener('click', function() {
+        document.getElementById('androidTutorial').style.display = 'none';
+        document.getElementById('iosTutorial').style.display = 'block';
+        this.classList.add('active');
+        document.getElementById('showAndroidTutorial').classList.remove('active');
+    });
+
     document.getElementById('calculatePetFoodBtn').addEventListener('click', calculatePetFood);
     document.getElementById('calculateXpBtn').addEventListener('click', calculateXP);
     
+    // --- SAVEGAME IMPORT LOGIC ---
+    document.getElementById('importSaveBtn').addEventListener('click', () => {
+        document.getElementById('savegameImport').click();
+    });
+
+    document.getElementById('savegameImport').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                let content = e.target.result;
+                const jsonStart = content.indexOf('{');
+                const jsonEnd = content.lastIndexOf('}');
+                if (jsonStart === -1 || jsonEnd === -1) throw new Error("JSON non trovato nel file");
+                content = content.substring(jsonStart, jsonEnd + 1);
+                
+                const savegame = JSON.parse(content);
+                const data = savegame.Data || savegame;
+                const gameData = data.GameSavegame;
+                if (!gameData) throw new Error("Formato savegame non valido");
+
+                // 1. Seed dei forzieri
+                const chestIdMap = {
+                    0: 'small', 1: 'big', 9: 'adventure_Zeus', 10: 'adventure_Pirate',
+                    4: 'event_SeaPort', 3: 'event_Space', 2: 'event_Mine', 
+                    5: 'event_MiddleAges', 15: 'event_Alchemist', 7: 'clan', 6: 'pet'
+                };
+
+                const chestSavegames = gameData.CharacterSavegame?.EquipmentChestSavegames || [];
+                chestSavegames.forEach(chest => {
+                    const cardId = chestIdMap[chest.ChestId];
+                    if (cardId) {
+                        if (!cardStates[cardId]) cardStates[cardId] = { initialSeed: null, history: [] };
+                        cardStates[cardId].initialSeed = chest.Seed;
+                        cardStates[cardId].history = [];
+                    }
+                });
+
+                // 2. Seed delle uova
+                const eggRarityMap = { 1: 'egg_Rare', 2: 'egg_Epic', 3: 'egg_Legendary', 4: 'egg_Ultimate' };
+                const eggSeeds = gameData.CharacterSavegame?.PetEggSeeds || [];
+                eggSeeds.forEach(egg => {
+                    const cardId = eggRarityMap[egg.EggRarity];
+                    if (cardId) {
+                        if (!cardStates[cardId]) cardStates[cardId] = { initialSeed: null, history: [] };
+                        cardStates[cardId].initialSeed = egg.Seed;
+                        cardStates[cardId].history = [];
+                    }
+                });
+
+                // 3. Livelli Adventure
+                const adventureInfos = gameData.AdventuresSavegame?.AdventureInfos || {};
+                if (adventureInfos.Greek) {
+                    if (!cardStates['adventure_Zeus']) cardStates['adventure_Zeus'] = { initialSeed: null, history: [] };
+                    cardStates['adventure_Zeus'].level = adventureInfos.Greek.UnlockedLevel || 1;
+                }
+                if (adventureInfos.Pirates) {
+                    if (!cardStates['adventure_Pirate']) cardStates['adventure_Pirate'] = { initialSeed: null, history: [] };
+                    cardStates['adventure_Pirate'].level = adventureInfos.Pirates.UnlockedLevel || 1;
+                }
+
+                // 4. Vault % (Artifact ID 20: Picklock)
+                const artifactSavegames = gameData.ArtifactsSavegame?.ArtifactSavegames || [];
+                const picklockArtifact = artifactSavegames.find(a => a.ID === 20);
+                if (picklockArtifact) {
+                    const vaultLevel = picklockArtifact.Level || 0;
+                    const vaultPercentage = Math.min(35, vaultLevel + 4); // Livello 1 = 5%, +1% per livello, max 35%
+                    
+                    ['adventure_Zeus', 'adventure_Pirate'].forEach(cardId => {
+                        if (!cardStates[cardId]) cardStates[cardId] = { initialSeed: null, history: [] };
+                        cardStates[cardId].vaultPercentage = vaultPercentage;
+                    });
+                }
+
+                // 5. Discovery Event
+                const discoveryData = gameData.DiscoveryEventSavegame;
+                if (discoveryData) {
+                    if (!cardStates['discovery']) cardStates['discovery'] = { initialSeed: null, history: [] };
+                    cardStates['discovery'].initialSeed = discoveryData.Seed;
+                    cardStates['discovery'].level = discoveryData.Level || 0;
+                    cardStates['discovery'].fruitsFound = discoveryData.ClaimedTiles?.length || 0;
+                    
+                    const discoveryCard = document.querySelector('.card[data-card-id="discovery"]');
+                    if (discoveryCard) {
+                        const { seedInput, levelInput, fruitsFoundInput } = getCardElements(discoveryCard);
+                        if (seedInput) seedInput.value = discoveryData.Seed;
+                        if (levelInput) levelInput.value = discoveryData.Level || 0;
+                        if (fruitsFoundInput) fruitsFoundInput.value = discoveryData.ClaimedTiles?.length || 0;
+                    }
+                }
+
+                // 6. Egg Counters
+                const equipmentItems = gameData.CharacterSavegame?.EquipmentItemsSavegames || [];
+                const eggCounts = { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
+                equipmentItems.forEach(item => {
+                    if (item.EquipmentItemId.includes('Pet_Egg_')) {
+                        const rarity = item.EquipmentItemId.split('_').pop();
+                        if (eggCounts[rarity] !== undefined) eggCounts[rarity] += (item.Count || 1);
+                    }
+                });
+
+                for (const rarity in eggCounts) {
+                    const input = document.getElementById(`global-egg-${rarity.toLowerCase()}`);
+                    if (input) {
+                        input.value = eggCounts[rarity];
+                        globalEggCounts[rarity] = eggCounts[rarity];
+                    }
+                }
+
+                // Aggiorna UI
+                document.querySelectorAll('.card[data-card-id]').forEach(card => {
+                    const cardId = card.dataset.cardId;
+                    const state = cardStates[cardId];
+                    if (state) {
+                        const { seedInput, levelInput, vaultInput, fruitsFoundInput } = getCardElements(card);
+                        if (seedInput) seedInput.value = state.initialSeed || '';
+                        if (levelInput && state.level !== undefined) levelInput.value = state.level;
+                        if (vaultInput && state.vaultPercentage !== undefined) vaultInput.value = state.vaultPercentage;
+                        if (fruitsFoundInput && state.fruitsFound !== undefined) fruitsFoundInput.value = state.fruitsFound;
+                    }
+                    renderCard(cardId);
+                });
+                
+                updateAndDisplayEggCounters();
+                toastr.success("Savegame importato con successo!");
+                saveState();
+
+            } catch (error) {
+                console.error("Import error:", error);
+                toastr.error("Errore durante l'importazione del file.");
+            }
+        };
+        reader.readAsText(file);
+    });
+
     // ================== FIX FOR SCOPE ERRORS ==================
     // This makes the functions available globally so onclick attributes in the HTML can find them.
     window.selectItemForSearch = selectItemForSearch;
     window.openGlobalSearch = openGlobalSearch;
     window.closeSearchModal = closeSearchModal;
     // ==========================================================
+
+    // Debug Mode Check
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('debug') === 'true') {
+        document.querySelectorAll('.debug').forEach(el => {
+            el.style.display = 'block';
+        });
+    }
+
 
 }); // End of DOMContentLoaded

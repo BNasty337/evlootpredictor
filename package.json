@@ -13,6 +13,7 @@
   },
   "scripts": {
     "obfuscate": "node obfuscate.js",
+    "dev": "npx vercel dev",
     "build": "rm -rf public && mkdir -p public && npm run obfuscate && cp index.html unity-random.js public && cp -r src public"
   }
 }
