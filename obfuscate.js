@@ -43,6 +43,6 @@ let obfuscationOptions = {
 const obfuscationResult = JavaScriptObfuscator.obfuscate(originalCode, obfuscationOptions);
 
 // Salva il codice offuscato in un nuovo file
-fs.writeFileSync('public/app.obfuscated.js', obfuscationResult.getObfuscatedCode());
+fs.writeFileSync('public/app.js', obfuscationResult.getObfuscatedCode());
 
-console.log('✅ Success: app.js has been obfuscated into public/app.obfuscated.js');
+console.log('✅ Success: app.js has been obfuscated into public/app.js');
