@@ -4,10 +4,53 @@ let smartSearchTargetItems = [];
 let globalEggCounts = { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
 let authData = { isLoggedIn: false }; // Contiene lo stato dell'utente
 
+// Standard C# System.Random (Subtractive Generator)
+class SystemRandom {
+    constructor(seed) {
+        this.MBIG = 2147483647;
+        this.MSEED = 161803398;
+        this.seedArray = new Array(56).fill(0);
+
+        let subtraction = (seed === -2147483648) ? 2147483647 : Math.abs(seed | 0);
+        let mj = this.MSEED - subtraction;
+        this.seedArray[55] = mj;
+        let mk = 1;
+        for (let i = 1; i < 55; i++) {
+            let ii = (21 * i) % 55;
+            this.seedArray[ii] = mk;
+            mk = mj - mk;
+            if (mk < 0) mk += this.MBIG;
+            mj = this.seedArray[ii];
+        }
+        for (let k = 1; k < 5; k++) {
+            for (let i = 1; i < 56; i++) {
+                this.seedArray[i] -= this.seedArray[1 + (i + 30) % 55];
+                if (this.seedArray[i] < 0) this.seedArray[i] += this.MBIG;
+            }
+        }
+        this.inext = 0;
+        this.inextp = 21;
+    }
+
+    sample() {
+        if (++this.inext >= 56) this.inext = 1;
+        if (++this.inextp >= 56) this.inextp = 1;
+        let retVal = this.seedArray[this.inext] - this.seedArray[this.inextp];
+        if (retVal < 0) retVal += this.MBIG;
+        this.seedArray[this.inext] = retVal;
+        return retVal * (1.0 / this.MBIG);
+    }
+
+    range(min, max) {
+        if (min === max) return min;
+        return min + Math.floor(this.sample() * (max - min));
+    }
+}
+
 // NUOVA GESTIONE DELLO STATO (con debounce per non sovraccaricare il DB)
 function debounce(func, delay) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(this, args), delay);
     };
@@ -46,95 +89,95 @@ async function loadStateFromDB() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Selettori per gli elementi da bloccare
-  const requiresLoginSelectors = [
-    '.dummyClass'
-    /*
-        '.card[data-card-id="small"]',
-        '.card[data-card-id="pet"]',
-        '.card[data-card-id="clan"]',
-        '.card[data-card-id="egg_Ultimate"]',
-        '.card[data-card-id^="adventure_Pirate"]',
-        '.card[data-card-id^="event_"]',
-        '.global-search-btn'
-        */
+    const requiresLoginSelectors = [
+        '.dummyClass'
+        /*
+            '.card[data-card-id="small"]',
+            '.card[data-card-id="pet"]',
+            '.card[data-card-id="clan"]',
+            '.card[data-card-id="egg_Ultimate"]',
+            '.card[data-card-id^="adventure_Pirate"]',
+            '.card[data-card-id^="event_"]',
+            '.global-search-btn'
+            */
     ];
     const elementsToLock = document.querySelectorAll(requiresLoginSelectors.join(','));
-const removeLockStyles = () => {
-    document.querySelectorAll('.lock-wrapper').forEach(wrapper => {
-        const originalEl = wrapper.firstChild;
-        if (originalEl) {
-            // Ripristina gli stili originali dell'elemento
-            originalEl.style.filter = '';
-            originalEl.style.opacity = '';
-            originalEl.style.pointerEvents = ''; // RIATTIVA GLI EVENTI
-            
-            // Sposta l'elemento fuori dal wrapper e rimuovi il wrapper
-            wrapper.parentNode.insertBefore(originalEl, wrapper);
-            wrapper.parentNode.removeChild(wrapper);
+    const removeLockStyles = () => {
+        document.querySelectorAll('.lock-wrapper').forEach(wrapper => {
+            const originalEl = wrapper.firstChild;
+            if (originalEl) {
+                // Ripristina gli stili originali dell'elemento
+                originalEl.style.filter = '';
+                originalEl.style.opacity = '';
+                originalEl.style.pointerEvents = ''; // RIATTIVA GLI EVENTI
+
+                // Sposta l'elemento fuori dal wrapper e rimuovi il wrapper
+                wrapper.parentNode.insertBefore(originalEl, wrapper);
+                wrapper.parentNode.removeChild(wrapper);
+            }
+        });
+    };
+    //helloo
+    const applyLockStyles = () => {
+        const requiresLoginSelectors = [
+            '.dummyClass'
+            /*  '.card[data-card-id="small"]',
+              '.card[data-card-id="pet"]',
+              '.card[data-card-id="clan"]',
+              '.card[data-card-id="egg_Ultimate"]',
+              '.card[data-card-id^="adventure_"]',
+              '.card[data-card-id^="event_"]',
+              '.global-search-btn'
+              */
+        ];
+
+        document.querySelectorAll(requiresLoginSelectors.join(',')).forEach(el => {
+            // Se è già bloccato, non fare nulla
+            if (el.parentNode.classList.contains('lock-wrapper')) {
+                return;
+            }
+
+            // --- LA TUA LOGICA ORIGINALE, APPLICATA ALL'ELEMENTO ---
+            el.style.filter = 'blur(4px)';
+            el.style.opacity = '0.7';
+            el.style.pointerEvents = 'none'; // <-- ECColo QUI, RIPRISTINATO!
+
+            // --- LA NUOVA FUNZIONALITÀ AGGIUNTA CORRETTAMENTE ---
+            const wrapper = document.createElement('div');
+            wrapper.className = 'lock-wrapper';
+            el.parentNode.insertBefore(wrapper, el);
+            wrapper.appendChild(el);
+
+            const overlay = document.createElement('div');
+            overlay.className = 'login-overlay';
+
+            const overlayText = el.classList.contains('global-search-btn') ? '🔒' : '🔒 Login to Unlock!';
+            overlay.innerHTML = overlayText;
+            wrapper.appendChild(overlay);
+        });
+    };
+
+    const toggleFeatures = (isLocked) => {
+        if (lockInterval) {
+            clearInterval(lockInterval);
+            lockInterval = null;
         }
-    });
-};
-//helloo
-const applyLockStyles = () => {
-    const requiresLoginSelectors = [
-          '.dummyClass'
-      /*  '.card[data-card-id="small"]',
-        '.card[data-card-id="pet"]',
-        '.card[data-card-id="clan"]',
-        '.card[data-card-id="egg_Ultimate"]',
-        '.card[data-card-id^="adventure_"]',
-        '.card[data-card-id^="event_"]',
-        '.global-search-btn'
-        */
-    ];
-    
-    document.querySelectorAll(requiresLoginSelectors.join(',')).forEach(el => {
-        // Se è già bloccato, non fare nulla
-        if (el.parentNode.classList.contains('lock-wrapper')) {
-            return;
+
+        if (isLocked) {
+            applyLockStyles();
+            // IL TUO CICLO SETINTERVAL, RIPRISTINATO E FUNZIONANTE
+            lockInterval = setInterval(applyLockStyles, 100);
+        } else {
+            removeLockStyles();
         }
-
-        // --- LA TUA LOGICA ORIGINALE, APPLICATA ALL'ELEMENTO ---
-        el.style.filter = 'blur(4px)';
-        el.style.opacity = '0.7';
-        el.style.pointerEvents = 'none'; // <-- ECColo QUI, RIPRISTINATO!
-
-        // --- LA NUOVA FUNZIONALITÀ AGGIUNTA CORRETTAMENTE ---
-        const wrapper = document.createElement('div');
-        wrapper.className = 'lock-wrapper';
-        el.parentNode.insertBefore(wrapper, el);
-        wrapper.appendChild(el);
-
-        const overlay = document.createElement('div');
-        overlay.className = 'login-overlay';
-        
-        const overlayText = el.classList.contains('global-search-btn') ? '🔒' : '🔒 Login to Unlock!';
-        overlay.innerHTML = overlayText;
-        wrapper.appendChild(overlay);
-    });
-};
-
-const toggleFeatures = (isLocked) => {
-    if (lockInterval) {
-        clearInterval(lockInterval);
-        lockInterval = null;
-    }
-
-    if (isLocked) {
-        applyLockStyles();
-        // IL TUO CICLO SETINTERVAL, RIPRISTINATO E FUNZIONANTE
-        lockInterval = setInterval(applyLockStyles, 100); 
-    } else {
-        removeLockStyles();
-    }
-};
+    };
 
 
 
     let lastActivityTime = Date.now();
     let userIsLoggedIn = false; // Una variabile per sapere se l'utente è loggato
 
- let currentUserStatus = null; // Unico oggetto per memorizzare lo stato corrente dell'utente
+    let currentUserStatus = null; // Unico oggetto per memorizzare lo stato corrente dell'utente
 
     // --- FUNZIONE RIUTILIZZABILE PER L'UI ---
     const updateUI = (statusData) => {
@@ -174,14 +217,14 @@ const toggleFeatures = (isLocked) => {
     // --- LOGICA DI POLLING ATTIVO ---
     const checkUserStatusPeriodically = async () => {
         const userIsActive = (Date.now() - lastActivityTime) < (5 * 60 * 1000); // 2 minuti
-        
+
         // Esegui solo se abbiamo uno stato e l'utente è loggato e attivo
         if (currentUserStatus && currentUserStatus.isLoggedIn && userIsActive) {
             console.log("Utente attivo, forzo l'aggiornamento dello stato...");
             try {
                 const response = await fetch('/api/status?force-refresh=true');
                 if (!response.ok) throw new Error('Network response was not ok');
-                
+
                 const latestStatus = await response.json();
 
                 // Aggiorna la UI SOLO se lo stato di "membro" è cambiato
@@ -202,7 +245,7 @@ const toggleFeatures = (isLocked) => {
         try {
             const response = await fetch('/api/status');
             if (!response.ok) throw new Error('Initial status fetch failed');
-            
+
             currentUserStatus = await response.json();
             updateUI(currentUserStatus);
         } catch (error) {
@@ -218,7 +261,7 @@ const toggleFeatures = (isLocked) => {
         window.addEventListener('scroll', updateUserActivity, { passive: true });
 
         // 3. Avvia il timer di controllo PERIODICO solo dopo aver ottenuto lo stato iniziale
-        setInterval(checkUserStatusPeriodically, 60 * 1000* 2); // Controlla ogni 2 minuti
+        setInterval(checkUserStatusPeriodically, 60 * 1000 * 2); // Controlla ogni 2 minuti
     };
 
     // Avvia tutto
@@ -226,16 +269,16 @@ const toggleFeatures = (isLocked) => {
 
 
 
-document.getElementById('tool-container').addEventListener('click', (event) => {
-    // If the user clicks our overlay...
-    if (event.target.classList.contains('login-overlay')) {
-         toastr.info('Please login with Discord to use this feature!');
-    }
-});
+    document.getElementById('tool-container').addEventListener('click', (event) => {
+        // If the user clicks our overlay...
+        if (event.target.classList.contains('login-overlay')) {
+            toastr.info('Please login with Discord to use this feature!');
+        }
+    });
 
-     document.querySelector('.global-search-btn').addEventListener('click', (event) => {
+    document.querySelector('.global-search-btn').addEventListener('click', (event) => {
         if (event.currentTarget.style.filter) {
-             toastr.info('Accedi con Discord per usare questa funzionalità!');
+            toastr.info('Accedi con Discord per usare questa funzionalità!');
         }
     });
 
@@ -246,40 +289,40 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
     };
     document.getElementById('logout-button-welcome').addEventListener('click', handleLogout);
     document.getElementById('logout-button-banned').addEventListener('click', handleLogout);
-    
+
     // State Management Key
-    const STATE_KEY = 'lootSimulatorState_v14_globalEggs'; 
-    let currentSearchMode = null, currentSearchCard = null, currentCalcCardId = null; 
+    const STATE_KEY = 'lootSimulatorState_v14_globalEggs';
+    let currentSearchMode = null, currentSearchCard = null, currentCalcCardId = null;
     let optimalXpPathSolution = null;
     let currentXpPathStep = 0;
     // Note: The original 'saveState' and 'loadState' that used localStorage have been removed
-    function saveState() { 
-    const stateToSave = {
-        cards: cardStates,
-        eggs: globalEggCounts
-    };
-    localStorage.setItem(STATE_KEY, JSON.stringify(stateToSave)); 
-}
-    // to prevent conflict with the database-saving logic at the top of the file.
- function loadState() { 
-    const saved = localStorage.getItem(STATE_KEY); 
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        cardStates = parsed.cards || {};
-        globalEggCounts = parsed.eggs || { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
-    } else {
-        cardStates = {};
-        globalEggCounts = { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
+    function saveState() {
+        const stateToSave = {
+            cards: cardStates,
+            eggs: globalEggCounts
+        };
+        localStorage.setItem(STATE_KEY, JSON.stringify(stateToSave));
     }
-}
+    // to prevent conflict with the database-saving logic at the top of the file.
+    function loadState() {
+        const saved = localStorage.getItem(STATE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            cardStates = parsed.cards || {};
+            globalEggCounts = parsed.eggs || { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
+        } else {
+            cardStates = {};
+            globalEggCounts = { Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0 };
+        }
+    }
 
     // Game Data
     const LOOT_TABLES = {
-        small: { title: 'Small Box', itemsPerChest: 2, totalWeight: 10025, table: [ { result: { type: 'Equipment', rarity: 'Common' }, weight: 6000 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 1200 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 300 }, { result: { type: 'Pet Egg', rarity: 'Common' }, weight: 100 }, { result: { type: 'Pet Egg', rarity: 'Rare' }, weight: 25 }, { result: { type: 'Pet Food', rarity: 'None' }, weight: 2400 }, ] },
-        big: { title: 'Big Box', itemsPerChest: 6, totalWeight: 10025, table: [ { result: { type: 'Equipment', rarity: 'Common' }, weight: 4800 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 3000 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 1500 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 500 }, { result: { type: 'Pet Egg', rarity: 'Epic' }, weight: 200 }, { result: { type: 'Pet Egg', rarity: 'Legendary' }, weight: 25 }, ] },
-        clan: { title: 'Clan Chest', itemsPerChest: 6, totalWeight: 10000, table: [ { result: { type: 'Equipment', rarity: 'Rare' }, weight: 5300 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 3300 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 1200 }, { result: { type: 'Equipment', rarity: 'Mythic' }, weight: 200 }, ] },
-        event: { title: 'Event Chest', itemsPerChest: 6, totalWeight: 10000, table: [ { result: { type: 'Equipment', rarity: 'Common' }, weight: 4800 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 3000 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 1500 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 500 }, { result: { type: 'Equipment', rarity: 'Ultimate' }, weight: 200 }, ] },
-        pet: { title: 'Pet Box', itemsPerChest: 3, totalWeight: 9990, table: [ { result: { type: 'Pet Egg', rarity: 'Common' }, weight: 5900 }, { result: { type: 'Pet Egg', rarity: 'Rare' }, weight: 2800 }, { result: { type: 'Pet Egg', rarity: 'Epic' }, weight: 1100 }, { result: { type: 'Pet Egg', rarity: 'Legendary' }, weight: 140 }, { result: { type: 'Pet Egg', rarity: 'Ultimate' }, weight: 50 }, ] }
+        small: { title: 'Small Box', itemsPerChest: 2, totalWeight: 10025, table: [{ result: { type: 'Equipment', rarity: 'Common' }, weight: 6000 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 1200 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 300 }, { result: { type: 'Pet Egg', rarity: 'Common' }, weight: 100 }, { result: { type: 'Pet Egg', rarity: 'Rare' }, weight: 25 }, { result: { type: 'Pet Food', rarity: 'None' }, weight: 2400 },] },
+        big: { title: 'Big Box', itemsPerChest: 6, totalWeight: 10025, table: [{ result: { type: 'Equipment', rarity: 'Common' }, weight: 4800 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 3000 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 1500 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 500 }, { result: { type: 'Pet Egg', rarity: 'Epic' }, weight: 200 }, { result: { type: 'Pet Egg', rarity: 'Legendary' }, weight: 25 },] },
+        clan: { title: 'Clan Chest', itemsPerChest: 6, totalWeight: 10000, table: [{ result: { type: 'Equipment', rarity: 'Rare' }, weight: 5300 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 3300 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 1200 }, { result: { type: 'Equipment', rarity: 'Mythic' }, weight: 200 },] },
+        event: { title: 'Event Chest', itemsPerChest: 6, totalWeight: 10000, table: [{ result: { type: 'Equipment', rarity: 'Common' }, weight: 4800 }, { result: { type: 'Equipment', rarity: 'Rare' }, weight: 3000 }, { result: { type: 'Equipment', rarity: 'Epic' }, weight: 1500 }, { result: { type: 'Equipment', rarity: 'Legendary' }, weight: 500 }, { result: { type: 'Equipment', rarity: 'Ultimate' }, weight: 200 },] },
+        pet: { title: 'Pet Box', itemsPerChest: 3, totalWeight: 9990, table: [{ result: { type: 'Pet Egg', rarity: 'Common' }, weight: 5900 }, { result: { type: 'Pet Egg', rarity: 'Rare' }, weight: 2800 }, { result: { type: 'Pet Egg', rarity: 'Epic' }, weight: 1100 }, { result: { type: 'Pet Egg', rarity: 'Legendary' }, weight: 140 }, { result: { type: 'Pet Egg', rarity: 'Ultimate' }, weight: 50 },] }
     };
 
     const ADVENTURE_LOOT_RATES = [
@@ -338,31 +381,31 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
     ];
 
     const ITEM_POOLS = {
-        Common: ["Hat_Cashier","Hat_Barista","Hat_Beanie","Hat_Chef","Hat_Cashier_Blue","Body_Barista","Body_BlueWhite","Body_RedGray","Body_WhiteShirt_Belt","Body_RedShirt_Belt","Tool_WoodSpoon","Tool_MetalSpatula","Tool_Hammer","Tool_SoupSpoon","Tool_Knife"],
-        Rare: ["Hat_SushiChef","Hat_TrafficCone","Hat_Round","Hat_Fireman","Hat_CoolCap","Body_JumperYellow","Body_JumperRedBlue","Body_Waiter","Body_BowTieRed","Body_Apron_White","Tool_NoodleSpoon","Tool_FlourSpoon","Tool_CheeseGrater","Tool_KetchupBottle","Tool_Broom"],
-        Epic: ["Hat_Hoodie","Hat_Glasses","Hat_Mafia","Hat_Chef_Black","Hat_ChefTall","Body_Coat","Body_Box","Body_Kimono_Black","Body_JumperBlackWhite","Body_Apron_Purple","Tool_Whisk","Tool_RollingPin","Tool_PizzaCutter","Tool_Mug","Tool_Wok"],
-        Legendary: ["Hat_Leperchaun","Hat_ElderBeard","Hat_ChefTall_Dark","Hat_CapPurple","Hat_SushiMaster","Body_ItalianChef","Body_TankTop_White","Body_ToolBelt","Body_Kimono_Blue","Body_Barrel","Tool_Mixer","Tool_PepperMill","Tool_ChopSticks","Tool_CookBook","Tool_Chopper"],
-        Mythic: ["Body_WarriorApron","Hat_WarriorHelmet","Tool_WarriorCleaver","Tool_WarriorTenderiser"],
-        Ultimate_MiddleAges: ["Body_RoyalRobe","Hat_RoyalCrown","Tool_RoyalSceptre"],
-        Ultimate_Mine: ["Body_ToolBelt","Hat_MineLamp","Tool_Pickaxe_Special"],
-        Ultimate_SeaPort: ["Body_Shark","Head_Shark","Tool_Anchor"],
-        Ultimate_Space: ["Body_Robot","Head_Robot","Tool_LaserGun"],
-        Ultimate_Alchemist: ["Body_Bandolier","Hat_Goggles","Tool_Flask"],
+        Common: ["Hat_Cashier", "Hat_Barista", "Hat_Beanie", "Hat_Chef", "Hat_Cashier_Blue", "Body_Barista", "Body_BlueWhite", "Body_RedGray", "Body_WhiteShirt_Belt", "Body_RedShirt_Belt", "Tool_WoodSpoon", "Tool_MetalSpatula", "Tool_Hammer", "Tool_SoupSpoon", "Tool_Knife"],
+        Rare: ["Hat_SushiChef", "Hat_TrafficCone", "Hat_Round", "Hat_Fireman", "Hat_CoolCap", "Body_JumperYellow", "Body_JumperRedBlue", "Body_Waiter", "Body_BowTieRed", "Body_Apron_White", "Tool_NoodleSpoon", "Tool_FlourSpoon", "Tool_CheeseGrater", "Tool_KetchupBottle", "Tool_Broom"],
+        Epic: ["Hat_Hoodie", "Hat_Glasses", "Hat_Mafia", "Hat_Chef_Black", "Hat_ChefTall", "Body_Coat", "Body_Box", "Body_Kimono_Black", "Body_JumperBlackWhite", "Body_Apron_Purple", "Tool_Whisk", "Tool_RollingPin", "Tool_PizzaCutter", "Tool_Mug", "Tool_Wok"],
+        Legendary: ["Hat_Leperchaun", "Hat_ElderBeard", "Hat_ChefTall_Dark", "Hat_CapPurple", "Hat_SushiMaster", "Body_ItalianChef", "Body_TankTop_White", "Body_ToolBelt", "Body_Kimono_Blue", "Body_Barrel", "Tool_Mixer", "Tool_PepperMill", "Tool_ChopSticks", "Tool_CookBook", "Tool_Chopper"],
+        Mythic: ["Body_WarriorApron", "Hat_WarriorHelmet", "Tool_WarriorCleaver", "Tool_WarriorTenderiser"],
+        Ultimate_MiddleAges: ["Body_RoyalRobe", "Hat_RoyalCrown", "Tool_RoyalSceptre"],
+        Ultimate_Mine: ["Body_ToolBelt", "Hat_MineLamp", "Tool_Pickaxe_Special"],
+        Ultimate_SeaPort: ["Body_Shark", "Head_Shark", "Tool_Anchor"],
+        Ultimate_Space: ["Body_Robot", "Head_Robot", "Tool_LaserGun"],
+        Ultimate_Alchemist: ["Body_Bandolier", "Hat_Goggles", "Tool_Flask"],
 
-        Common_Zeus: ["Ring_Bronze","Ring_Wooden","Ring_Rubber","Ring_Plaster"],
-        Rare_Zeus: ["Ring_Silver","Ring_Onion","Ring_Candy","Ring_Plastic"],
-        Epic_Zeus: ["Ring_Gold","Ring_Wreath","Ring_Bagel","Ring_Donut"],
-        Legendary_Zeus: ["Ring_Snake","Ring_Bee","Ring_Lucky","Ring_Winged"],
-        Ultimate_Zeus: ["Ring_Evil","Ring_Nature","Ring_Sea","Ring_Love"],
+        Common_Zeus: ["Ring_Bronze", "Ring_Wooden", "Ring_Rubber", "Ring_Plaster"],
+        Rare_Zeus: ["Ring_Silver", "Ring_Onion", "Ring_Candy", "Ring_Plastic"],
+        Epic_Zeus: ["Ring_Gold", "Ring_Wreath", "Ring_Bagel", "Ring_Donut"],
+        Legendary_Zeus: ["Ring_Snake", "Ring_Bee", "Ring_Lucky", "Ring_Winged"],
+        Ultimate_Zeus: ["Ring_Evil", "Ring_Nature", "Ring_Sea", "Ring_Love"],
         Mythic_Zeus: ["Ring_Thunder"],
 
-        Common_Pirate: ["Necklace_Lai","Necklace_Bow","Necklace_Scarf","Necklace_Bands"],
-        Rare_Pirate: ["Necklace_Bandana","Necklace_Salt","Necklace_Shelfish","Necklace_Leather"],
-        Epic_Pirate: ["Necklace_Pearls","Necklace_Gold","Necklace_Diamond","Necklace_Dog"],
-        Legendary_Pirate: ["Necklace_Sausage","Necklace_Compass","Necklace_Beads","Necklace_Shark"],
-        Ultimate_Pirate: ["Necklace_Pirate","Necklace_Anchor","Necklace_Nazar","Necklace_Key"],     
+        Common_Pirate: ["Necklace_Lai", "Necklace_Bow", "Necklace_Scarf", "Necklace_Bands"],
+        Rare_Pirate: ["Necklace_Bandana", "Necklace_Salt", "Necklace_Shelfish", "Necklace_Leather"],
+        Epic_Pirate: ["Necklace_Pearls", "Necklace_Gold", "Necklace_Diamond", "Necklace_Dog"],
+        Legendary_Pirate: ["Necklace_Sausage", "Necklace_Compass", "Necklace_Beads", "Necklace_Shark"],
+        Ultimate_Pirate: ["Necklace_Pirate", "Necklace_Anchor", "Necklace_Nazar", "Necklace_Key"],
         Mythic_Pirate: ["Necklace_Trident"],
-        
+
         CommonEgg: ["Pet_Egg_Common"], RareEgg: ["Pet_Egg_Rare"], EpicEgg: ["Pet_Egg_Epic"], LegendaryEgg: ["Pet_Egg_Legendary"], UltimateEgg: ["Pet_Egg_Ultimate"],
         RarePet: ["Pet_HouseCat", "Pet_GoldenRetriever"],
         EpicPet: ["Pet_DarkHorse", "Pet_Penguin", "Pet_Pony", "Pet_Tortoise", "Pet_Turtle"],
@@ -372,7 +415,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
     const XP_VALUES_ITEMS = { Common: 4, Rare: 9, Epic: 22, Legendary: 26, Ultimate: 61, Mythic: 144 };
     const XP_VALUES_EGGS = { Common: 25, Rare: 50, Epic: 150, Legendary: 425, Ultimate: 1000 };
-    const DOMINANT_ADVENTURE_LEVELS = [4, 24, 39, 59, 100]; 
+    const DOMINANT_ADVENTURE_LEVELS = [4, 24, 39, 59, 100];
     const DOMINANT_ADVENTURE_LEVELS_FOR_ITEMS = [1, 4, 5, 24, 25, 39, 40, 59, 60];
     const AVERAGE_XP = {};
     (function calculateAverageXps() {
@@ -431,22 +474,22 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
     function getSpecificItem(rng, prize, eventType = null) {
         let itemName = "N/A", itemRoll = -1, baseName = '', actualRarity = prize.rarity;
         if (prize.type === 'Pet Food') {
-            itemRoll = rng.range(6, 15); itemName = `${itemRoll} Pet Food`; baseName = 'PetFood'; actualRarity="Common";
+            itemRoll = rng.range(6, 15); itemName = `${itemRoll} Pet Food`; baseName = 'PetFood'; actualRarity = "Common";
         } else {
             let poolName = prize.rarity;
             if (prize.type === 'Pet Egg') poolName += 'Egg';
-            if (eventType === 'Zeus' || eventType === 'Pirate') { poolName += '_' + eventType; } 
-            else if (prize.rarity === 'Ultimate' && eventType && eventType!='pet_box') { poolName += '_' + eventType; }
+            if (eventType === 'Zeus' || eventType === 'Pirate') { poolName += '_' + eventType; }
+            else if (prize.rarity === 'Ultimate' && eventType && eventType != 'pet_box') { poolName += '_' + eventType; }
             const pool = ITEM_POOLS[poolName] || [];
 
-            itemRoll = eventType=='pet_box'?0:rng.range(0, pool.length);
+            itemRoll = eventType == 'pet_box' ? 0 : rng.range(0, pool.length);
             baseName = pool[itemRoll] || `${poolName}_NotFound`;
             itemName = `${prize.type}: ${baseName} (${prize.rarity})`;
         }
         return { itemName, itemRoll, baseName, rarity: actualRarity };
     }
 
-    function simulateAdventureChestOpening(seed, level, eventType, vaultPercentage,typeAdventure='') {
+    function simulateAdventureChestOpening(seed, level, eventType, vaultPercentage, typeAdventure = '') {
         const rng = new UnityRandom(seed);
         const items = [];
         const whatIfItems = [];
@@ -455,7 +498,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
         const levelData = ADVENTURE_LOOT_RATES[level - 1];
         if (!levelData) return { items: [], nextSeed: seed, error: "Invalid level" };
-        
+
         const table = [];
         let totalWeight = 0;
         for (const [rarity, rate] of Object.entries(levelData.rates)) {
@@ -463,7 +506,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             table.push({ result: { type: 'Equipment', rarity: rarity }, weight: weight });
             totalWeight += weight;
         }
-        
+
         for (let i = 0; i < levelData.items; i++) {
             const typeRoll = rng.range(0, totalWeight);
             const prize = determinePrizeType(typeRoll, table);
@@ -509,7 +552,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             }
         }
 
-        return { items, nextSeed: rng.range(0, 2147483648), whatIfItems, keyDropsAt,keyDropsAt2 };
+        return { items, nextSeed: rng.range(0, 2147483648), whatIfItems, keyDropsAt, keyDropsAt2 };
     }
 
     const DISCOVERY_CONFIG = {
@@ -520,35 +563,72 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
         4: { width: 5, height: 7, fruits: 6 }
     };
 
-    function simulateDiscoveryEventFromRNG(rng) {
+    function getNumGems(level, stage) {
+        if (level === 0) return 1;
+        if (level === 1) return stage === 1 ? 11 : 3;
+        if (level === 2) return (stage === 1 || stage === 5) ? 17 : 5;
+        if (level === 3) return 6;
+        if (level === 4) return 6;
+        return 1;
+    }
+
+    function simulateDiscoveryMapFromSeed(seedBase, stageOffset = -1) {
         const allLevels = [];
-        
+
         for (let l = 0; l <= 4; l++) {
             const config = DISCOVERY_CONFIG[l];
-            const gridSize = config.width * config.height;
             const stages = [];
-            
-            for (let s = 0; s < config.fruits; s++) {
-                // 1. Shuffle
-                const grid = Array.from({length: gridSize}, (_, i) => i);
-                for (let i = 0; i < grid.length; i++) {
-                    const r = rng.range(i, grid.length);
-                    [grid[i], grid[r]] = [grid[r], grid[i]];
+
+            for (let s = 1; s <= config.fruits; s++) {
+
+                // Applichiamo l'offset che hai trovato (-1)
+                const levelId = (l * 1000) + s + stageOffset;
+                const stageRng = new SystemRandom((seedBase + levelId) | 0);
+
+                // Creazione coordinate in memoria (Column-Major)
+                const coords = [];
+                for (let x = 0; x < config.width; x++) {
+                    for (let y = 0; y < config.height; y++) {
+                        coords.push({ x: x, y: y });
+                    }
                 }
-                
-                // 2. Fruit/Gem Search
-                const fruitShufflePos = rng.range(0, gridSize);
-                let gemShufflePos = rng.range(0, gridSize);
-                while (gemShufflePos === fruitShufflePos) {
-                    gemShufflePos = rng.range(0, gridSize);
+
+                // Fisher-Yates Shuffle
+                for (let i = coords.length - 1; i > 0; i--) {
+                    const j = stageRng.range(0, i + 1);
+                    const temp = coords[i];
+                    coords[i] = coords[j];
+                    coords[j] = temp;
                 }
-                
+
+                // Estrazione Oggetti
+                const numGems = getNumGems(l, s);
+                const gemsCoords = coords.slice(0, numGems);
+                const fruitCoord = coords[numGems];
+
+                // === LA TRASLAZIONE DELLE PRINT ===
+                // Scorriamo la griglia ESATTAMENTE come faceva la stringa
+                let fruitPos1D = -1;
+                let gemsPos1D = [];
+                let currentIndex = 0;
+
+                for (let y = config.height - 1; y >= 0; y--) {
+                    for (let x = 0; x < config.width; x++) {
+                        // Controlliamo chi c'è in questa coordinata
+                        const isGem = gemsCoords.some(g => g.x === x && g.y === y);
+                        const isFruit = fruitCoord.x === x && fruitCoord.y === y;
+
+                        if (isFruit) fruitPos1D = currentIndex;
+                        if (isGem) gemsPos1D.push(currentIndex);
+
+                        currentIndex++; // Avanziamo l'indice da 0 a (Area - 1)
+                    }
+                }
+
                 stages.push({
-                    stage: s + 1,
-                    type: 'shuffle', // Defaulting to shuffle for all for now to find patterns
-                    shuffle: [...grid],
-                    fruitShufflePos,
-                    gemShufflePos,
+                    stage: s,
+                    fruitPos: fruitPos1D,
+                    gems: gemsPos1D, // Sono già ordinati naturalmente da 0 in poi!
                     width: config.width,
                     height: config.height
                 });
@@ -560,11 +640,11 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
     function simulateChestOpening(seed, config, eventType = null) {
         const rng = new UnityRandom(seed); const items = [];
-    
+
         for (let i = 0; i < config.itemsPerChest; i++) {
             const typeRoll = rng.range(0, config.totalWeight);
             const prize = determinePrizeType(typeRoll, config.table);
-            const { itemName, itemRoll, baseName, rarity } = getSpecificItem(rng, prize, config.title == 'Pet Box'?'pet_box':eventType);
+            const { itemName, itemRoll, baseName, rarity } = getSpecificItem(rng, prize, config.title == 'Pet Box' ? 'pet_box' : eventType);
             items.push({ name: itemName, typeRoll, itemRoll, baseName, rarity });
         }
         if (config.title === 'Pet Box') {
@@ -598,7 +678,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
         const rarity = item.rarity || 'common';
         const itemXp = getItemXp(item);
         const xpDisplay = itemXp > 0 ? `<span class="item-xp-label">+${itemXp} XP</span>` : '';
-        let formattedRarity = ` <span class="label-rarity" ><strong>${item.baseName!="PetFood"?rarity:(item.itemRoll+" x PetFood")}</strong></span>`;
+        let formattedRarity = ` <span class="label-rarity" ><strong>${item.baseName != "PetFood" ? rarity : (item.itemRoll + " x PetFood")}</strong></span>`;
         let imageHtml = `<img src="./src/${item.baseName}.png" alt="${item.baseName}" class="item-image me-2" onerror="this.src='./src/BigChestIcon.png';" onclick="selectItemForSearch('${item.baseName}', '${rarity}')" title="Click to search for this item">`;
         const nameWithoutRarity = item.name.replace(/ \((.*)\)/, '');
         return `<div class="item-card rarity-${rarity.toLowerCase()}">${xpDisplay} ${imageHtml}<span class="debug">${nameWithoutRarity}</span>${formattedRarity}</div>`;
@@ -606,17 +686,17 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
     function getCardElements(card) {
         return {
-            cardId: card.dataset.cardId, 
-            seedInput: card.querySelector('.seed-input'), 
-            levelInput: card.querySelector('.level-input'), 
-            vaultInput: card.querySelector('.vault-percentage-input'), 
+            cardId: card.dataset.cardId,
+            seedInput: card.querySelector('.seed-input'),
+            levelInput: card.querySelector('.level-input'),
+            vaultInput: card.querySelector('.vault-percentage-input'),
             fruitsFoundInput: card.querySelector('.fruits-found-input'),
-            resultsDiv: card.querySelector('.results-container'), 
-            counterSpan: card.querySelector('.counter'), 
-            xpCounter: card.querySelector('.xp-counter'), 
-            petfoodCounter: card.querySelector('.petfood-counter'), 
+            resultsDiv: card.querySelector('.results-container'),
+            counterSpan: card.querySelector('.counter'),
+            xpCounter: card.querySelector('.xp-counter'),
+            petfoodCounter: card.querySelector('.petfood-counter'),
             toggleBtn: card.querySelector('.toggle-btn'),
-            whatIfBtn: card.querySelector('button[data-action="toggle-what-if"]') 
+            whatIfBtn: card.querySelector('button[data-action="toggle-what-if"]')
         };
     }
 
@@ -631,9 +711,9 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             state.history.forEach(action => {
                 const seedForThisAction = currentSeed;
                 let result;
-                if (action.type === 'egg') { result = simulateEggOpening(currentSeed, action.rarity); } 
+                if (action.type === 'egg') { result = simulateEggOpening(currentSeed, action.rarity); }
                 else if (action.type === 'discovery') { result = simulateDiscoveryEvent(currentSeed, action.level); }
-                else if (action.type.startsWith('adventure')) { result = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage,action.type); } 
+                else if (action.type.startsWith('adventure')) { result = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage, action.type); }
                 else { const config = LOOT_TABLES[action.type === 'event' ? 'event' : action.type]; result = simulateChestOpening(currentSeed, config, action.eventType); }
                 result.items.forEach(item => {
                     totalXp += getItemXp(item);
@@ -643,13 +723,21 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                 currentSeed = result.nextSeed;
             });
         }
-        seedInput.value = currentSeed || state.initialSeed || '';
-        counterSpan.textContent = `Opened: ${state.history.length}`;
+        if (cardId === 'discovery') {
+            if (seedInput) seedInput.value = state.initialSeed || '';
+            if (counterSpan) counterSpan.textContent = state.level || 0;
+            if (xpCounter) xpCounter.textContent = state.fruitsFound || 0;
+            return; // Skip the rest for discovery card
+        }
+
+        if (seedInput) seedInput.value = currentSeed || state.initialSeed || '';
+        if (counterSpan) counterSpan.textContent = `Opened: ${state.history.length}`;
         if (xpCounter) xpCounter.textContent = `Total XP: ${totalXp}`;
         if (petfoodCounter) petfoodCounter.textContent = `Pet Food: ${totalPetFood}`;
 
         const headerDetails = card.querySelector('.chest-header .d-flex');
         if (xpCounter && headerDetails) {
+
             let userAvgDisplay = headerDetails.querySelector('.user-avg-xp');
             if (!userAvgDisplay) {
                 userAvgDisplay = document.createElement('small');
@@ -665,10 +753,10 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                 theoreticalAvgDisplay.className = 'theoretical-avg-xp';
                 headerDetails.appendChild(theoreticalAvgDisplay);
             }
-            
+
             let theoreticalAvgXp = 0;
             const [chestType] = cardId.includes('_') ? cardId.split('_') : [cardId, null];
-            
+
             if (chestType.startsWith('adventure')) {
                 const level = parseInt(card.querySelector('.level-input')?.value, 10) || 1;
                 theoreticalAvgXp = getAverageXpForAdventure(level);
@@ -677,11 +765,11 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             } else if (AVERAGE_XP[chestType]) {
                 theoreticalAvgXp = AVERAGE_XP[chestType];
             }
-            
+
             if (!cardId.startsWith('egg_')) {
                 theoreticalAvgDisplay.textContent = `Avg XP: ${theoreticalAvgXp.toFixed(2)}`;
             } else {
-                 theoreticalAvgDisplay.textContent = '';
+                theoreticalAvgDisplay.textContent = '';
             }
         }
 
@@ -707,13 +795,13 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                 if (res.type === 'egg') title = `${res.rarity} Egg`;
                 else if (res.type === 'discovery') title = `Discovery Lvl ${res.level}`;
                 else if (res.type.startsWith('adventure')) title = `${res.eventType} Box (Lvl ${res.level})`;
-                else { 
-                    const config = LOOT_TABLES[res.type === 'event' ? 'event' : res.type]; 
-                    title = res.eventType ? `Event: ${res.eventType}` : (config ? config.title : 'Unknown'); 
+                else {
+                    const config = LOOT_TABLES[res.type === 'event' ? 'event' : res.type];
+                    title = res.eventType ? `Event: ${res.eventType}` : (config ? config.title : 'Unknown');
                 }
             }
             const historyIndex = state.history.length - (resultsToShow.length - 1) + index;
-            
+
             if (res.type === 'discovery') {
                 const runsHtml = res.runs.map((run, runIdx) => `
                     <div class="input-group mb-3">
@@ -728,17 +816,17 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                         <div class="text-white-50 small mb-1">Run ${runIdx + 1}</div>
                         <div style="display: grid; grid-template-columns: repeat(${run.width}, 30px); gap: 3px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px; width: fit-content; margin: 0 auto;">
                             ${Array.from({ length: run.width * run.height }).map((_, i) => {
-                                let style = "background: rgba(255,255,255,0.05);";
-                                let icon = "";
-                                if (i === run.fruitPos) {
-                                    style = "background: #4caf50; box-shadow: 0 0 8px #4caf50;";
-                                    icon = '<i class="fas fa-apple-alt" style="font-size: 14px;"></i>';
-                                } else if (run.gemPositions.includes(i)) {
-                                    style = "background: #2196f3;";
-                                    icon = '<i class="fas fa-gem" style="font-size: 14px;"></i>';
-                                }
-                                return `<div style="width: 30px; height: 30px; ${style} border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">${icon || i}</div>`;
-                            }).join('')}
+                    let style = "background: rgba(255,255,255,0.05);";
+                    let icon = "";
+                    if (i === run.fruitPos) {
+                        style = "background: #4caf50; box-shadow: 0 0 8px #4caf50;";
+                        icon = '<i class="fas fa-apple-alt" style="font-size: 14px;"></i>';
+                    } else if (run.gemPositions.includes(i)) {
+                        style = "background: #2196f3;";
+                        icon = '<i class="fas fa-gem" style="font-size: 14px;"></i>';
+                    }
+                    return `<div style="width: 30px; height: 30px; ${style} border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">${icon || i}</div>`;
+                }).join('')}
                         </div>
                     </div>
                 `).join('');
@@ -761,13 +849,13 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
             let whatIfHtml = '';
             if (res.type.startsWith('adventure') && state.isWhatIfVisible) {
                 const whatIfItemsHtml = res.whatIfItems.map(item => `<div class="col"><div style="display: flex; justify-content: center; padding: 5px;">${formatItemDisplay(item)}</div></div>`).join('');
-                const keyInfoHtml = res.keyDropsAt > 0 
+                const keyInfoHtml = res.keyDropsAt > 0
                     ? `<i class="fas fa-key text-warning"></i> Key would drop at <strong>${res.keyDropsAt}%</strong> vault chance.`
                     : `<i class="fas fa-times text-danger"></i> No key drop up to 35% vault chance.`;
-                const keyInfoHtml2 = res.keyDropsAt!= res.keyDropsAt2
+                const keyInfoHtml2 = res.keyDropsAt != res.keyDropsAt2
                     ? `<i class="fas fa-key text-danger"></i> Key would drop at <strong>${res.keyDropsAt2}%</strong> vault chance but it's impossible.`
                     : ``;
-                    
+
                 whatIfHtml = `
                     <hr class="my-2">
                     <div class="what-if-section mt-2">
@@ -777,7 +865,7 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
                         <div class="text-center mt-2 small text-light">${keyInfoHtml2}</div>
                     </div>`;
             }
-            
+
             entryDiv.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0 text-warning"><i class="fas fa-treasure-chest me-1"></i>${title} #${historyIndex}</h6><small class="text-light">Seed: ${res.usedSeed}</small></div><hr class="my-2"><div class="row row-cols-3 g-2" style="justify-content: center;">${itemsHtml}</div>${chestXpDisplay}${whatIfHtml}<hr class="my-2"><small class="text-success"><i class="fas fa-arrow-right me-1"></i>Next Seed: ${res.nextSeed}</small>`;
             resultsDiv.prepend(entryDiv);
         });
@@ -793,62 +881,62 @@ document.getElementById('tool-container').addEventListener('click', (event) => {
 
     // Search Functions
 
- async function findOptimalXpPath({ startSeed, eventType, cardId, maxLevel, vaultPercentage, initialOpenings, updateCallback, shouldStopCallback }) {
-    let bestSolution = { path: [], xp: -1 };
-    let stopSearch = false;
+    async function findOptimalXpPath({ startSeed, eventType, cardId, maxLevel, vaultPercentage, initialOpenings, updateCallback, shouldStopCallback }) {
+        let bestSolution = { path: [], xp: -1 };
+        let stopSearch = false;
 
-    async function search(currentSeed, currentPath, currentXp, openingsLeft) {
-        if (await shouldStopCallback() || openingsLeft <= 0) {
-            if (currentXp > bestSolution.xp) {
-                bestSolution = { path: currentPath, xp: currentXp };
+        async function search(currentSeed, currentPath, currentXp, openingsLeft) {
+            if (await shouldStopCallback() || openingsLeft <= 0) {
+                if (currentXp > bestSolution.xp) {
+                    bestSolution = { path: currentPath, xp: currentXp };
+                }
+                return;
             }
-            return;
+
+            if (currentPath.length > (bestSolution.path.length || 0)) {
+                await updateCallback(currentPath.length);
+            }
+
+            const relevantDominantLevels = DOMINANT_ADVENTURE_LEVELS.filter(level => level <= maxLevel);
+            if (!relevantDominantLevels.includes(maxLevel)) {
+                relevantDominantLevels.push(maxLevel);
+            }
+
+            for (const level of relevantDominantLevels) {
+                if (await shouldStopCallback()) break;
+
+                const result = simulateAdventureChestOpening(currentSeed, level, eventType, vaultPercentage, cardId);
+                let openingXp = 0;
+                result.items.forEach(item => {
+                    openingXp += getItemXp(item);
+                });
+
+                const keysFound = result.items.filter(item => item.baseName.endsWith('KeyIcon')).length;
+                const newOpeningsLeft = openingsLeft - 1 + keysFound;
+                const newPath = [...currentPath, { level: level, items: result.items, xp: openingXp, usedSeed: currentSeed }];
+
+                await search(result.nextSeed, newPath, currentXp + openingXp, newOpeningsLeft);
+            }
         }
 
-        if (currentPath.length > (bestSolution.path.length || 0)) {
-            await updateCallback(currentPath.length);
-        }
-
-        const relevantDominantLevels = DOMINANT_ADVENTURE_LEVELS.filter(level => level <= maxLevel);
-        if (!relevantDominantLevels.includes(maxLevel)) {
-            relevantDominantLevels.push(maxLevel);
-        }
-
-        for (const level of relevantDominantLevels) {
-            if (await shouldStopCallback()) break;
-
-            const result = simulateAdventureChestOpening(currentSeed, level, eventType, vaultPercentage, cardId);
-            let openingXp = 0;
-            result.items.forEach(item => {
-                openingXp += getItemXp(item);
-            });
-
-            const keysFound = result.items.filter(item => item.baseName.endsWith('KeyIcon')).length;
-            const newOpeningsLeft = openingsLeft - 1 + keysFound;
-            const newPath = [...currentPath, { level: level, items: result.items, xp: openingXp, usedSeed: currentSeed }];
-
-            await search(result.nextSeed, newPath, currentXp + openingXp, newOpeningsLeft);
-        }
+        await search(startSeed, [], 0, initialOpenings);
+        return bestSolution;
     }
 
-    await search(startSeed, [], 0, initialOpenings);
-    return bestSolution;
-}
+    /**
+     * Renders the currently active step of the optimal XP path.
+     */
+    function renderCurrentXpStep() {
+        if (!optimalXpPathSolution) return;
 
-/**
- * Renders the currently active step of the optimal XP path.
- */
-function renderCurrentXpStep() {
-    if (!optimalXpPathSolution) return;
+        const step = optimalXpPathSolution.path[currentXpPathStep];
+        const totalSteps = optimalXpPathSolution.path.length;
+        const stepContent = document.getElementById('xp-step-content');
 
-    const step = optimalXpPathSolution.path[currentXpPathStep];
-    const totalSteps = optimalXpPathSolution.path.length;
-    const stepContent = document.getElementById('xp-step-content');
+        const itemsHtml = step.items.map(item => `<div class="col-4">${formatItemDisplay(item)}</div>`).join('');
+        const keyFound = step.items.some(item => item.baseName.endsWith('KeyIcon'));
 
-    const itemsHtml = step.items.map(item => `<div class="col-4">${formatItemDisplay(item)}</div>`).join('');
-    const keyFound = step.items.some(item => item.baseName.endsWith('KeyIcon'));
-
-    stepContent.innerHTML = `
+        stepContent.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0 text-white">Step ${currentXpPathStep + 1}: Open Level ${step.level}</h6>
             <span class="badge bg-warning text-dark">+${step.xp.toFixed(2)} XP</span>
@@ -861,180 +949,180 @@ function renderCurrentXpStep() {
         </div>
     `;
 
-    // Update counter and button states
-    document.getElementById('xp-step-counter').textContent = `Step ${currentXpPathStep + 1} of ${totalSteps}`;
-    document.getElementById('xp-prev-step-btn').disabled = currentXpPathStep === 0;
-    document.getElementById('xp-next-step-btn').disabled = currentXpPathStep >= totalSteps - 1;
-}
-
-/**
- * Initializes and displays the step-by-step view for the optimal XP path.
- * @param {object} solution - The solution object from findOptimalXpPath.
- */
-function displayXpPathStepByStep(solution) {
-    const resultsContent = document.getElementById('searchResultsContent');
-    const stepContainer = document.getElementById('xp-step-by-step-container');
-
-    if (!solution || solution.xp < 0) {
-        resultsContent.innerHTML = `<div class="alert alert-warning">Could not calculate a path. Please ensure your level is set.</div>`;
-        stepContainer.style.display = 'none';
-        return;
+        // Update counter and button states
+        document.getElementById('xp-step-counter').textContent = `Step ${currentXpPathStep + 1} of ${totalSteps}`;
+        document.getElementById('xp-prev-step-btn').disabled = currentXpPathStep === 0;
+        document.getElementById('xp-next-step-btn').disabled = currentXpPathStep >= totalSteps - 1;
     }
 
-    // Store solution globally and reset step
-    optimalXpPathSolution = solution;
-    currentXpPathStep = 0;
-    
-    // Hide standard results and show step-by-step container
-    resultsContent.style.display = 'none';
-    stepContainer.style.display = 'block';
+    /**
+     * Initializes and displays the step-by-step view for the optimal XP path.
+     * @param {object} solution - The solution object from findOptimalXpPath.
+     */
+    function displayXpPathStepByStep(solution) {
+        const resultsContent = document.getElementById('searchResultsContent');
+        const stepContainer = document.getElementById('xp-step-by-step-container');
 
-    // Update summary
-    document.getElementById('total-xp-summary').textContent = solution.xp.toFixed(2);
-    document.getElementById('total-steps-summary').textContent = solution.path.length;
-
-    // Render the first step
-    renderCurrentXpStep();
-}
-
-// Add event listeners for the new navigation buttons
-document.getElementById('xp-prev-step-btn').addEventListener('click', () => {
-    if (currentXpPathStep > 0) {
-        currentXpPathStep--;
-        renderCurrentXpStep();
-    }
-});
-
-document.getElementById('xp-next-step-btn').addEventListener('click', () => {
-    if (optimalXpPathSolution && currentXpPathStep < optimalXpPathSolution.path.length - 1) {
-        currentXpPathStep++;
-        renderCurrentXpStep();
-    }
-});
-
-
-async function performSmartXpSearch(cardId) {
-    const spinner = document.getElementById('searchSpinner');
-    const resultsContent = document.getElementById('searchResultsContent');
-    const resultsContainer = document.getElementById('searchResults');
-    const progressContainer = document.getElementById('search-progress-container');
-    const stopBtn = document.getElementById('stop-search-btn');
-    const livePathLength = document.getElementById('live-path-length');
-    
-    // Hide options and show spinner/progress
-    document.getElementById('smartXpOptions').style.display = 'none';
-    resultsContent.innerHTML = '';
-    document.getElementById('xp-step-by-step-container').style.display = 'none'; // Hide step view
-    spinner.style.display = 'block';
-    resultsContainer.style.display = 'block';
-    progressContainer.style.display = 'block';
-    livePathLength.textContent = '0';
-
-    let stopSearchFlag = false;
-    const stopSearchHandler = () => {
-        stopSearchFlag = true;
-        toastr.info('Search will stop soon...');
-        stopBtn.disabled = true;
-        stopBtn.textContent = 'Stopping...';
-    };
-
-    stopBtn.onclick = stopSearchHandler;
-    stopBtn.disabled = false;
-    stopBtn.textContent = 'Stop Search';
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Validate initial state
-    const state = cardStates[cardId];
-    if (!state || state.initialSeed === null) {
-        spinner.style.display = 'none';
-        progressContainer.style.display = 'none';
-        resultsContent.innerHTML = `<div class="alert alert-danger">Please set an initial seed for this chest first.</div>`;
-        resultsContent.style.display = 'block';
-        toastr.error("Please set an initial seed for this chest.");
-        return;
-    }
-
-    const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
-    const userLevel = parseInt(card.querySelector('.level-input')?.value, 10);
-    const vaultPercentage = parseInt(card.querySelector('.vault-percentage-input')?.value, 10) || 0;
-
-    if (isNaN(userLevel) || userLevel < 1 || userLevel > 100) {
-        spinner.style.display = 'none';
-        progressContainer.style.display = 'none';
-        resultsContent.innerHTML = `<div class="alert alert-danger">Please enter a valid level (1-100) to start the search.</div>`;
-        resultsContent.style.display = 'block';
-        toastr.error("Please enter a valid level (1-100).");
-        return;
-    }
-    const openings = parseInt(document.getElementById('smartXpOpenings').value, 10) || 4;
-    
-    const [_, eventType] = cardId.split('_');
-    let startSeed = state.initialSeed;
-    state.history.forEach(action => {
-        startSeed = simulateAdventureChestOpening(startSeed, action.level, action.eventType, action.vaultPercentage, action.type).nextSeed;
-    });
-
-    let maxPathLengthSoFar = 0;
-    const updateCallback = async (pathLength) => {
-        if (pathLength > maxPathLengthSoFar) {
-            maxPathLengthSoFar = pathLength;
-            livePathLength.textContent = maxPathLengthSoFar;
-            await new Promise(resolve => requestAnimationFrame(resolve));
+        if (!solution || solution.xp < 0) {
+            resultsContent.innerHTML = `<div class="alert alert-warning">Could not calculate a path. Please ensure your level is set.</div>`;
+            stepContainer.style.display = 'none';
+            return;
         }
-    };
 
-    const shouldStopCallback = async () => {
-        return stopSearchFlag;
-    };
+        // Store solution globally and reset step
+        optimalXpPathSolution = solution;
+        currentXpPathStep = 0;
 
-    const bestPath = await findOptimalXpPath({
-        startSeed,
-        eventType,
-        cardId,
-        maxLevel: userLevel,
-        vaultPercentage,
-        initialOpenings: openings,
-        updateCallback,
-        shouldStopCallback
+        // Hide standard results and show step-by-step container
+        resultsContent.style.display = 'none';
+        stepContainer.style.display = 'block';
+
+        // Update summary
+        document.getElementById('total-xp-summary').textContent = solution.xp.toFixed(2);
+        document.getElementById('total-steps-summary').textContent = solution.path.length;
+
+        // Render the first step
+        renderCurrentXpStep();
+    }
+
+    // Add event listeners for the new navigation buttons
+    document.getElementById('xp-prev-step-btn').addEventListener('click', () => {
+        if (currentXpPathStep > 0) {
+            currentXpPathStep--;
+            renderCurrentXpStep();
+        }
     });
 
-    // Clean up the interface and display results
-    spinner.style.display = 'none';
-    progressContainer.style.display = 'none';
-    displayXpPathStepByStep(bestPath); // Use the new step-by-step display function
-}
+    document.getElementById('xp-next-step-btn').addEventListener('click', () => {
+        if (optimalXpPathSolution && currentXpPathStep < optimalXpPathSolution.path.length - 1) {
+            currentXpPathStep++;
+            renderCurrentXpStep();
+        }
+    });
 
-// In app.js, aggiungi questa nuova funzione
 
-function openSmartXpModal(cardId) {
-    // Memorizza il cardId per quando il pulsante di avvio verrà premuto
-    currentSearchCard = cardId; 
+    async function performSmartXpSearch(cardId) {
+        const spinner = document.getElementById('searchSpinner');
+        const resultsContent = document.getElementById('searchResultsContent');
+        const resultsContainer = document.getElementById('searchResults');
+        const progressContainer = document.getElementById('search-progress-container');
+        const stopBtn = document.getElementById('stop-search-btn');
+        const livePathLength = document.getElementById('live-path-length');
+
+        // Hide options and show spinner/progress
+        document.getElementById('smartXpOptions').style.display = 'none';
+        resultsContent.innerHTML = '';
+        document.getElementById('xp-step-by-step-container').style.display = 'none'; // Hide step view
+        spinner.style.display = 'block';
+        resultsContainer.style.display = 'block';
+        progressContainer.style.display = 'block';
+        livePathLength.textContent = '0';
+
+        let stopSearchFlag = false;
+        const stopSearchHandler = () => {
+            stopSearchFlag = true;
+            toastr.info('Search will stop soon...');
+            stopBtn.disabled = true;
+            stopBtn.textContent = 'Stopping...';
+        };
+
+        stopBtn.onclick = stopSearchHandler;
+        stopBtn.disabled = false;
+        stopBtn.textContent = 'Stop Search';
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Validate initial state
+        const state = cardStates[cardId];
+        if (!state || state.initialSeed === null) {
+            spinner.style.display = 'none';
+            progressContainer.style.display = 'none';
+            resultsContent.innerHTML = `<div class="alert alert-danger">Please set an initial seed for this chest first.</div>`;
+            resultsContent.style.display = 'block';
+            toastr.error("Please set an initial seed for this chest.");
+            return;
+        }
+
+        const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+        const userLevel = parseInt(card.querySelector('.level-input')?.value, 10);
+        const vaultPercentage = parseInt(card.querySelector('.vault-percentage-input')?.value, 10) || 0;
+
+        if (isNaN(userLevel) || userLevel < 1 || userLevel > 100) {
+            spinner.style.display = 'none';
+            progressContainer.style.display = 'none';
+            resultsContent.innerHTML = `<div class="alert alert-danger">Please enter a valid level (1-100) to start the search.</div>`;
+            resultsContent.style.display = 'block';
+            toastr.error("Please enter a valid level (1-100).");
+            return;
+        }
+        const openings = parseInt(document.getElementById('smartXpOpenings').value, 10) || 4;
+
+        const [_, eventType] = cardId.split('_');
+        let startSeed = state.initialSeed;
+        state.history.forEach(action => {
+            startSeed = simulateAdventureChestOpening(startSeed, action.level, action.eventType, action.vaultPercentage, action.type).nextSeed;
+        });
+
+        let maxPathLengthSoFar = 0;
+        const updateCallback = async (pathLength) => {
+            if (pathLength > maxPathLengthSoFar) {
+                maxPathLengthSoFar = pathLength;
+                livePathLength.textContent = maxPathLengthSoFar;
+                await new Promise(resolve => requestAnimationFrame(resolve));
+            }
+        };
+
+        const shouldStopCallback = async () => {
+            return stopSearchFlag;
+        };
+
+        const bestPath = await findOptimalXpPath({
+            startSeed,
+            eventType,
+            cardId,
+            maxLevel: userLevel,
+            vaultPercentage,
+            initialOpenings: openings,
+            updateCallback,
+            shouldStopCallback
+        });
+
+        // Clean up the interface and display results
+        spinner.style.display = 'none';
+        progressContainer.style.display = 'none';
+        displayXpPathStepByStep(bestPath); // Use the new step-by-step display function
+    }
+
+    // In app.js, aggiungi questa nuova funzione
+
+    function openSmartXpModal(cardId) {
+        // Memorizza il cardId per quando il pulsante di avvio verrà premuto
+        currentSearchCard = cardId;
         document.getElementById('smartFindControls').style.display = 'none';
-    // Configura la modale per la ricerca "Smart XP"
-    document.getElementById('searchModalTitle').textContent = 'Smart XP Optimizer';
-    document.getElementById('smartXpOptions').style.display = 'block';
-    document.getElementById('smartXpOpenings').value = '4'; // Resetta al valore di default
-    
-    // Nascondi gli altri elementi non necessari
-    document.getElementById('itemSearchGroup').style.display = 'none';
-    document.getElementById('itemGrid').style.display = 'none';
-    document.getElementById('searchResults').style.display = 'none';
+        // Configura la modale per la ricerca "Smart XP"
+        document.getElementById('searchModalTitle').textContent = 'Smart XP Optimizer';
+        document.getElementById('smartXpOptions').style.display = 'block';
+        document.getElementById('smartXpOpenings').value = '4'; // Resetta al valore di default
 
-    // Mostra la finestra modale
-    document.getElementById('searchOverlay').style.display = 'flex';
+        // Nascondi gli altri elementi non necessari
+        document.getElementById('itemSearchGroup').style.display = 'none';
+        document.getElementById('itemGrid').style.display = 'none';
+        document.getElementById('searchResults').style.display = 'none';
 
-    const startBtn = document.getElementById('startSmartXpSearchBtn');
-    
-    // Sostituisci il bottone con un suo clone per rimuovere vecchi event listener
-    const newStartBtn = startBtn.cloneNode(true);
-    startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+        // Mostra la finestra modale
+        document.getElementById('searchOverlay').style.display = 'flex';
 
-    // Aggiungi un event listener che si attiverà una sola volta
-    newStartBtn.addEventListener('click', () => {
-        performSmartXpSearch(currentSearchCard);
-    }, { once: true });
-}
+        const startBtn = document.getElementById('startSmartXpSearchBtn');
+
+        // Sostituisci il bottone con un suo clone per rimuovere vecchi event listener
+        const newStartBtn = startBtn.cloneNode(true);
+        startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+
+        // Aggiungi un event listener che si attiverà una sola volta
+        newStartBtn.addEventListener('click', () => {
+            performSmartXpSearch(currentSearchCard);
+        }, { once: true });
+    }
     function getAvailableItemsForChest(chestType, eventType = null) {
         const availableItems = new Set();
         const addItemsFromPool = (poolName, rarity, type) => {
@@ -1062,7 +1150,7 @@ function openSmartXpModal(cardId) {
     function getAllAvailableItems() {
         const allItems = new Set();
         Object.values(ITEM_POOLS).forEach(pool => pool.forEach(item => allItems.add(item)));
-        return Array.from(allItems).map(item => ({ baseName: item, rarity: 'Unknown', type: 'Unknown' })).filter(x=>!x.baseName.toLowerCase().includes("pet_")||x.baseName.toLowerCase().includes("egg"))
+        return Array.from(allItems).map(item => ({ baseName: item, rarity: 'Unknown', type: 'Unknown' })).filter(x => !x.baseName.toLowerCase().includes("pet_") || x.baseName.toLowerCase().includes("egg"))
     }
     function searchForItem(targetItem, cardId) {
         const state = cardStates[cardId];
@@ -1072,9 +1160,9 @@ function openSmartXpModal(cardId) {
         if (chestType.startsWith('adventure')) {
             const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
             const level = parseInt(card.querySelector('.level-input').value, 10);
-            const vaultPC=parseInt(0+document.querySelector('.vault-percentage-input').value, 10)
+            const vaultPC = parseInt(0 + document.querySelector('.vault-percentage-input').value, 10)
             if (isNaN(level) || level < 1 || level > 100) return { found: false, error: 'Please enter a valid level (1-100) for the search.' };
-             if(vaultPC>35) return { found: false, error: 'Please enter a valid vault percentage (0-35) for the search.' };
+            if (vaultPC > 35) return { found: false, error: 'Please enter a valid vault percentage (0-35) for the search.' };
             state.history.forEach(action => { currentSeed = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage).nextSeed; });
             for (let attempts = 1; attempts <= 10000; attempts++) {
                 const result = simulateAdventureChestOpening(currentSeed, level, eventType, 0);
@@ -1111,27 +1199,27 @@ function openSmartXpModal(cardId) {
         return results;
     }
     function selectItemForSearch(targetItem, rarity) {
-    if (currentSearchMode === 'local') {
-        performLocalSearch(targetItem);
-    } else if (currentSearchMode === 'global') {
-        performGlobalSearch(targetItem);
-    } else if (currentSearchMode === 'smart') {
-        const itemIdentifier = targetItem;
-        const itemIndex = smartSearchTargetItems.indexOf(itemIdentifier);
-        const itemElement = event.target; // Get the clicked image element
+        if (currentSearchMode === 'local') {
+            performLocalSearch(targetItem);
+        } else if (currentSearchMode === 'global') {
+            performGlobalSearch(targetItem);
+        } else if (currentSearchMode === 'smart') {
+            const itemIdentifier = targetItem;
+            const itemIndex = smartSearchTargetItems.indexOf(itemIdentifier);
+            const itemElement = event.target; // Get the clicked image element
 
-        if (itemIndex > -1) {
-            // Item is already selected, so unselect it
-            smartSearchTargetItems.splice(itemIndex, 1);
-            itemElement.classList.remove('selected');
-        } else {
-            // Item is not selected, so add it
-            smartSearchTargetItems.push(itemIdentifier);
-            itemElement.classList.add('selected');
+            if (itemIndex > -1) {
+                // Item is already selected, so unselect it
+                smartSearchTargetItems.splice(itemIndex, 1);
+                itemElement.classList.remove('selected');
+            } else {
+                // Item is not selected, so add it
+                smartSearchTargetItems.push(itemIdentifier);
+                itemElement.classList.add('selected');
+            }
+            updateSmartFindButton(); // Update the button to reflect the selection
         }
-        updateSmartFindButton(); // Update the button to reflect the selection
     }
-}
     function performLocalSearch(targetItem) {
         const result = searchForItem(targetItem, currentSearchCard);
         let resultHtml = result.found ? `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><strong>Item Found!</strong><br>Found <strong>${targetItem}</strong> in <strong>${result.attempts}</strong> openings.</div>` : `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i><strong>Item Not Found</strong><br>Could not find <strong>${targetItem}</strong> within 10,000 attempts. ${result.error ? `<br><small>${result.error}</small>` : ''}</div>`;
@@ -1150,24 +1238,24 @@ function openSmartXpModal(cardId) {
         document.getElementById('searchResultsContent').innerHTML = resultHtml;
         document.getElementById('searchResults').style.display = 'block';
     }
-function openLocalSearch(cardId) {
+    function openLocalSearch(cardId) {
         document.getElementById('smartFindControls').style.display = 'none';
-    currentSearchMode = 'local'; currentSearchCard = cardId;
-    const [chestType, eventType] = cardId.includes('_') ? cardId.split('_') : [cardId, null];
-    const availableItems = getAvailableItemsForChest(chestType, eventType);
-    document.getElementById('searchModalTitle').textContent = `Find Item in ${cardId.replace(/_/g, ' ')}`;
-    populateItemGrid(availableItems);
-    document.getElementById('itemGrid').style.display = 'flex'; // <-- RIGA AGGIUNTA
-    document.getElementById('searchResults').style.display = 'none'; document.getElementById('searchOverlay').style.display = 'flex';
-}
-function openGlobalSearch() {
+        currentSearchMode = 'local'; currentSearchCard = cardId;
+        const [chestType, eventType] = cardId.includes('_') ? cardId.split('_') : [cardId, null];
+        const availableItems = getAvailableItemsForChest(chestType, eventType);
+        document.getElementById('searchModalTitle').textContent = `Find Item in ${cardId.replace(/_/g, ' ')}`;
+        populateItemGrid(availableItems);
+        document.getElementById('itemGrid').style.display = 'flex'; // <-- RIGA AGGIUNTA
+        document.getElementById('searchResults').style.display = 'none'; document.getElementById('searchOverlay').style.display = 'flex';
+    }
+    function openGlobalSearch() {
         document.getElementById('smartFindControls').style.display = 'none';
-    currentSearchMode = 'global'; currentSearchCard = null; const allItems = getAllAvailableItems();
-    document.getElementById('searchModalTitle').textContent = 'Global Item Search';
-    populateItemGrid(allItems);
-    document.getElementById('itemGrid').style.display = 'flex'; // <-- RIGA AGGIUNTA
-    document.getElementById('searchResults').style.display = 'none'; document.getElementById('searchOverlay').style.display = 'flex';
-}
+        currentSearchMode = 'global'; currentSearchCard = null; const allItems = getAllAvailableItems();
+        document.getElementById('searchModalTitle').textContent = 'Global Item Search';
+        populateItemGrid(allItems);
+        document.getElementById('itemGrid').style.display = 'flex'; // <-- RIGA AGGIUNTA
+        document.getElementById('searchResults').style.display = 'none'; document.getElementById('searchOverlay').style.display = 'flex';
+    }
     function populateItemGrid(items) {
         const grid = document.getElementById('itemGrid'); const searchInput = document.getElementById('searchInput');
         const renderItems = (filteredItems) => {
@@ -1180,33 +1268,33 @@ function openGlobalSearch() {
         };
         renderItems(items); searchInput.oninput = () => renderItems(items.filter(item => item.baseName.toLowerCase().includes(searchInput.value.toLowerCase())));
     }
-function closeSearchModal() {
-    document.getElementById('searchOverlay').style.display = 'none';
-    currentSearchMode = null;
-    currentSearchCard = null;
-    document.getElementById('searchInput').value = '';
-    
-    // Reset the modal UI to its default state
-    document.getElementById('smartXpOptions').style.display = 'none';
-    document.getElementById('itemSearchGroup').style.display = 'block';
-    document.getElementById('itemGrid').style.display = 'flex';
-    document.getElementById('searchResultsContent').style.display = 'block'; // Show standard results div
-    document.getElementById('searchResultsContent').innerHTML = '';
+    function closeSearchModal() {
+        document.getElementById('searchOverlay').style.display = 'none';
+        currentSearchMode = null;
+        currentSearchCard = null;
+        document.getElementById('searchInput').value = '';
 
-    // NEW: Reset and hide the XP step-by-step viewer
-    document.getElementById('xp-step-by-step-container').style.display = 'none';
-    optimalXpPathSolution = null;
-    currentXpPathStep = 0;
-}
+        // Reset the modal UI to its default state
+        document.getElementById('smartXpOptions').style.display = 'none';
+        document.getElementById('itemSearchGroup').style.display = 'block';
+        document.getElementById('itemGrid').style.display = 'flex';
+        document.getElementById('searchResultsContent').style.display = 'block'; // Show standard results div
+        document.getElementById('searchResultsContent').innerHTML = '';
 
-        /**
-     * Formats the sequence of levels into a user-friendly, readable string.
-     * @param {number[]} path - An array of levels, e.g., [20, 20, 25]
-     * @returns {string} A formatted HTML string describing the steps.
-     */
+        // NEW: Reset and hide the XP step-by-step viewer
+        document.getElementById('xp-step-by-step-container').style.display = 'none';
+        optimalXpPathSolution = null;
+        currentXpPathStep = 0;
+    }
+
+    /**
+ * Formats the sequence of levels into a user-friendly, readable string.
+ * @param {number[]} path - An array of levels, e.g., [20, 20, 25]
+ * @returns {string} A formatted HTML string describing the steps.
+ */
     function formatPath(path) {
         if (!path || path.length === 0) return "No actions required.";
-        
+
         const groupedPath = path.reduce((acc, level) => {
             if (acc.length > 0 && acc[acc.length - 1].level === level) {
                 acc[acc.length - 1].count++;
@@ -1221,110 +1309,110 @@ function closeSearchModal() {
         ).join('<br> &rarr; ');
     }
 
-// In app.js, sostituisci la funzione findAllPaths con questa versione aggiornata
+    // In app.js, sostituisci la funzione findAllPaths con questa versione aggiornata
 
-function findAllPaths(startSeed, targetItems, eventType, cardId, maxLevel, vaultPercentage) {
-    const MAX_DEPTH = 10;
-    const solutions = [];
-    const targetSet = new Set(targetItems);
+    function findAllPaths(startSeed, targetItems, eventType, cardId, maxLevel, vaultPercentage) {
+        const MAX_DEPTH = 10;
+        const solutions = [];
+        const targetSet = new Set(targetItems);
 
-    const queue = [{
-        seed: startSeed,
-        path: [],
-        cost: 0,
-        foundItems: new Set()
-    }];
+        const queue = [{
+            seed: startSeed,
+            path: [],
+            cost: 0,
+            foundItems: new Set()
+        }];
 
-    const visited = new Map();
-    let minCostFound = Infinity;
+        const visited = new Map();
+        let minCostFound = Infinity;
 
-    // --- INIZIO MODIFICA ---
+        // --- INIZIO MODIFICA ---
 
-    // 1. Filtra i livelli dominanti in base al livello massimo dell'utente
-    let relevantLevels = DOMINANT_ADVENTURE_LEVELS_FOR_ITEMS.filter(level => level <= maxLevel);
+        // 1. Filtra i livelli dominanti in base al livello massimo dell'utente
+        let relevantLevels = DOMINANT_ADVENTURE_LEVELS_FOR_ITEMS.filter(level => level <= maxLevel);
 
-    // 2. Assicurati che il livello massimo dell'utente sia sempre incluso nella ricerca
-    if (!relevantLevels.includes(maxLevel)) {
-        relevantLevels.push(maxLevel);
-    }
-    
-    // 3. Rimuovi eventuali duplicati e ordina
-    relevantLevels = [...new Set(relevantLevels)].sort((a, b) => a - b);
-
-    // --- FINE MODIFICA ---
-
-
-    while (queue.length > 0) {
-        const { seed, path, cost, foundItems } = queue.shift();
-
-        if (cost >= minCostFound || path.length >= MAX_DEPTH) {
-            continue;
+        // 2. Assicurati che il livello massimo dell'utente sia sempre incluso nella ricerca
+        if (!relevantLevels.includes(maxLevel)) {
+            relevantLevels.push(maxLevel);
         }
 
-        // --- MODIFICA: Usa la lista di livelli ottimizzati invece di un ciclo completo ---
-        for (const level of relevantLevels) {
-            const result = simulateAdventureChestOpening(seed, level, eventType, vaultPercentage, cardId);
-            const newFoundItems = new Set(foundItems);
-            result.items.forEach(item => {
-                if (targetSet.has(item.baseName)) {
-                    newFoundItems.add(item.baseName);
-                }
-            });
+        // 3. Rimuovi eventuali duplicati e ordina
+        relevantLevels = [...new Set(relevantLevels)].sort((a, b) => a - b);
 
-            const keysFound = result.items.filter(item => item.baseName.endsWith('KeyIcon')).length;
-            const newCost = cost + (1 - keysFound);
-            const newPath = [...path, { level: level, items: result.items }];
+        // --- FINE MODIFICA ---
 
-            if (newFoundItems.size === targetSet.size) {
-                solutions.push({ path: newPath, cost: newCost });
-                minCostFound = Math.min(minCostFound, newCost);
+
+        while (queue.length > 0) {
+            const { seed, path, cost, foundItems } = queue.shift();
+
+            if (cost >= minCostFound || path.length >= MAX_DEPTH) {
+                continue;
             }
 
-            const nextSeed = result.nextSeed;
-            const pathLength = newPath.length;
-            
-            const frozenFoundSet = [...newFoundItems].sort().join(',');
-            const visitedForSeed = visited.get(nextSeed) || new Map();
-            const existingEntry = visitedForSeed.get(frozenFoundSet);
+            // --- MODIFICA: Usa la lista di livelli ottimizzati invece di un ciclo completo ---
+            for (const level of relevantLevels) {
+                const result = simulateAdventureChestOpening(seed, level, eventType, vaultPercentage, cardId);
+                const newFoundItems = new Set(foundItems);
+                result.items.forEach(item => {
+                    if (targetSet.has(item.baseName)) {
+                        newFoundItems.add(item.baseName);
+                    }
+                });
 
-            if (!existingEntry || pathLength < existingEntry.length || (pathLength === existingEntry.length && newCost < existingEntry.cost)) {
-                if (newCost < minCostFound) {
-                    visitedForSeed.set(frozenFoundSet, { length: pathLength, cost: newCost });
-                    visited.set(nextSeed, visitedForSeed);
-                    queue.push({
-                        seed: nextSeed,
-                        path: newPath,
-                        cost: newCost,
-                        foundItems: newFoundItems
-                    });
+                const keysFound = result.items.filter(item => item.baseName.endsWith('KeyIcon')).length;
+                const newCost = cost + (1 - keysFound);
+                const newPath = [...path, { level: level, items: result.items }];
+
+                if (newFoundItems.size === targetSet.size) {
+                    solutions.push({ path: newPath, cost: newCost });
+                    minCostFound = Math.min(minCostFound, newCost);
+                }
+
+                const nextSeed = result.nextSeed;
+                const pathLength = newPath.length;
+
+                const frozenFoundSet = [...newFoundItems].sort().join(',');
+                const visitedForSeed = visited.get(nextSeed) || new Map();
+                const existingEntry = visitedForSeed.get(frozenFoundSet);
+
+                if (!existingEntry || pathLength < existingEntry.length || (pathLength === existingEntry.length && newCost < existingEntry.cost)) {
+                    if (newCost < minCostFound) {
+                        visitedForSeed.set(frozenFoundSet, { length: pathLength, cost: newCost });
+                        visited.set(nextSeed, visitedForSeed);
+                        queue.push({
+                            seed: nextSeed,
+                            path: newPath,
+                            cost: newCost,
+                            foundItems: newFoundItems
+                        });
+                    }
                 }
             }
         }
+        return solutions;
     }
-    return solutions;
-}
 
 
-// Replace the old formatPath function with this new, more detailed formatter
-function formatPathWithItems(path, targetItems) {
-    if (!path || path.length === 0) return "No actions required.";
-    const targetSet = new Set(targetItems);
+    // Replace the old formatPath function with this new, more detailed formatter
+    function formatPathWithItems(path, targetItems) {
+        if (!path || path.length === 0) return "No actions required.";
+        const targetSet = new Set(targetItems);
 
-    let html = '<div class="list-group">';
-    path.forEach((step, index) => {
-        // Use a different style for target items to make them stand out
-        const itemsHtml = step.items.map(item => {
-            const isTarget = targetSet.has(item.baseName);
-            const formattedItem = formatItemDisplay(item);
-            return isTarget 
-                ? formattedItem.replace('class="item-card', 'class="item-card') 
-                : formattedItem;
-        }).join('');
+        let html = '<div class="list-group">';
+        path.forEach((step, index) => {
+            // Use a different style for target items to make them stand out
+            const itemsHtml = step.items.map(item => {
+                const isTarget = targetSet.has(item.baseName);
+                const formattedItem = formatItemDisplay(item);
+                return isTarget
+                    ? formattedItem.replace('class="item-card', 'class="item-card')
+                    : formattedItem;
+            }).join('');
 
-        const keyFound = step.items.some(item => item.baseName.endsWith('KeyIcon'));
-        const keyHtml = keyFound ? '<span class="badge bg-warning text-dark ms-2"><i class="fas fa-key"></i> +1 Free Open</span>' : '';
+            const keyFound = step.items.some(item => item.baseName.endsWith('KeyIcon'));
+            const keyHtml = keyFound ? '<span class="badge bg-warning text-dark ms-2"><i class="fas fa-key"></i> +1 Free Open</span>' : '';
 
-        html += `
+            html += `
             <div class="list-group-item bg-transparent text-white border-secondary mb-2 rounded">
                 <div class="d-flex w-100 justify-content-between">
                     <h6 class="mb-1">Step ${index + 1}: Open Level ${step.level} ${keyHtml}</h6>
@@ -1333,232 +1421,248 @@ function formatPathWithItems(path, targetItems) {
                     ${itemsHtml}
                 </div>
             </div>`;
-    });
-    html += '</div>';
-    return html;
-}
-
-// Modify performSmartSearch to use the new logic and formatter
-async function performSmartSearch(targetItems, cardId) {
-    const spinner = document.getElementById('searchSpinner');
-    const resultsContent = document.getElementById('searchResultsContent');
-    const resultsContainer = document.getElementById('searchResults');
-
-    resultsContent.innerHTML = '';
-    spinner.style.display = 'block';
-    document.getElementById('itemGrid').style.display = 'none';
-    resultsContainer.style.display = 'block';
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const state = cardStates[cardId];
-    if (!state || state.initialSeed === null) {
-        spinner.style.display = 'none';
-        resultsContent.innerHTML = `<div class="alert alert-danger">Please set an initial seed before searching.</div>`;
-        toastr.error("Please set an initial seed first.");
-        return;
+        });
+        html += '</div>';
+        return html;
     }
-    const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
-    const userLevel = parseInt(card.querySelector('.level-input')?.value, 10);
-    const vaultPercentage = parseInt(card.querySelector('.vault-percentage-input')?.value, 10) || 0;
 
-    if (isNaN(userLevel) || userLevel < 1 || userLevel > 100) {
-        spinner.style.display = 'none';
-        resultsContent.innerHTML = `<div class="alert alert-danger">A valid level (1-100) is required for Smart Find function.</div>`;
-        toastr.error("Please enter a valid level (1-100).");
-        return;
-    }
-    if (isNaN(vaultPercentage) || vaultPercentage < 0 || vaultPercentage > 100) {
-        spinner.style.display = 'none';
-        resultsContent.innerHTML = `<div class="alert alert-danger">A valid vault percentage (0-100) is required.</div>`;
-        toastr.error("Please enter a valid vault percentage.");
-        return;
-    }
-    const [_, eventType] = cardId.split('_');
-    let startSeed = state.initialSeed;
-    state.history.forEach(action => {
-        startSeed = simulateAdventureChestOpening(startSeed, action.level, action.eventType, action.vaultPercentage, action.type).nextSeed;
-    });
+    // Modify performSmartSearch to use the new logic and formatter
+    async function performSmartSearch(targetItems, cardId) {
+        const spinner = document.getElementById('searchSpinner');
+        const resultsContent = document.getElementById('searchResultsContent');
+        const resultsContainer = document.getElementById('searchResults');
 
-    const allSolutions = findAllPaths(startSeed, targetItems, eventType, cardId, userLevel, vaultPercentage);
+        resultsContent.innerHTML = '';
+        spinner.style.display = 'block';
+        document.getElementById('itemGrid').style.display = 'none';
+        resultsContainer.style.display = 'block';
 
-    if (allSolutions.length === 0) {
-         const searchLimit = findAllPaths.toString().match(/MAX_DEPTH = (\d+)/)[1];
-        resultsContent.innerHTML = `<div class="alert alert-warning">
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const state = cardStates[cardId];
+        if (!state || state.initialSeed === null) {
+            spinner.style.display = 'none';
+            resultsContent.innerHTML = `<div class="alert alert-danger">Please set an initial seed before searching.</div>`;
+            toastr.error("Please set an initial seed first.");
+            return;
+        }
+        const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+        const userLevel = parseInt(card.querySelector('.level-input')?.value, 10);
+        const vaultPercentage = parseInt(card.querySelector('.vault-percentage-input')?.value, 10) || 0;
+
+        if (isNaN(userLevel) || userLevel < 1 || userLevel > 100) {
+            spinner.style.display = 'none';
+            resultsContent.innerHTML = `<div class="alert alert-danger">A valid level (1-100) is required for Smart Find function.</div>`;
+            toastr.error("Please enter a valid level (1-100).");
+            return;
+        }
+        if (isNaN(vaultPercentage) || vaultPercentage < 0 || vaultPercentage > 100) {
+            spinner.style.display = 'none';
+            resultsContent.innerHTML = `<div class="alert alert-danger">A valid vault percentage (0-100) is required.</div>`;
+            toastr.error("Please enter a valid vault percentage.");
+            return;
+        }
+        const [_, eventType] = cardId.split('_');
+        let startSeed = state.initialSeed;
+        state.history.forEach(action => {
+            startSeed = simulateAdventureChestOpening(startSeed, action.level, action.eventType, action.vaultPercentage, action.type).nextSeed;
+        });
+
+        const allSolutions = findAllPaths(startSeed, targetItems, eventType, cardId, userLevel, vaultPercentage);
+
+        if (allSolutions.length === 0) {
+            const searchLimit = findAllPaths.toString().match(/MAX_DEPTH = (\d+)/)[1];
+            resultsContent.innerHTML = `<div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i><strong>Path Not Found</strong><br>
             No path  could be found within ${searchLimit} openings up to Level ${userLevel}.
         </div>`;
-    } else {
-        const shortestSolution = allSolutions.reduce((a, b) => a.path.length <= b.path.length ? a : b);
-        const cheapestSolution = allSolutions.reduce((a, b) => a.cost <= b.cost ? a : b);
-        
-        let html = '';
-        const areSame = JSON.stringify(shortestSolution.path.map(p => p.level)) === JSON.stringify(cheapestSolution.path.map(p => p.level));
-        if (areSame) {
-        html += `<div class="alert alert-success">
+        } else {
+            const shortestSolution = allSolutions.reduce((a, b) => a.path.length <= b.path.length ? a : b);
+            const cheapestSolution = allSolutions.reduce((a, b) => a.cost <= b.cost ? a : b);
+
+            let html = '';
+            const areSame = JSON.stringify(shortestSolution.path.map(p => p.level)) === JSON.stringify(cheapestSolution.path.map(p => p.level));
+            if (areSame) {
+                html += `<div class="alert alert-success">
                     <h5><i class="fas fa-shoe-prints me-2"></i>Shortest Path (Found All Items)</h5>
                     Found in <strong>${shortestSolution.path.length}</strong> openings. (Net cost: <strong>${shortestSolution.cost}</strong> chests)
                     <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(shortestSolution.path, targetItems)}</div>
                  </div>`;
-        }
-        else{
-            html += `<div class="alert alert-info">
+            }
+            else {
+                html += `<div class="alert alert-info">
                         <h5><i class="fas fa-coins me-2"></i>Most Cost-Effective Path (Found All Items)</h5>
                         Net cost: <strong>${cheapestSolution.cost}</strong> chests. (Requires <strong>${cheapestSolution.path.length}</strong> openings)
                         <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(cheapestSolution.path, targetItems)}</div>
                      </div>`;
+            }
+            resultsContent.innerHTML = html;
         }
-        resultsContent.innerHTML = html;
+        spinner.style.display = 'none';
     }
-    spinner.style.display = 'none';
-}
 
 
-function updateSmartFindButton() {
-    const startBtn = document.getElementById('startSmartFindSearchBtn');
-    if (startBtn) {
-        if (smartSearchTargetItems.length > 0) {
-            startBtn.disabled = false;
-            startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Find ${smartSearchTargetItems.length} Item(s)`;
-        } else {
-            startBtn.disabled = true;
-            startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Select Items to Find`;
+    function updateSmartFindButton() {
+        const startBtn = document.getElementById('startSmartFindSearchBtn');
+        if (startBtn) {
+            if (smartSearchTargetItems.length > 0) {
+                startBtn.disabled = false;
+                startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Find ${smartSearchTargetItems.length} Item(s)`;
+            } else {
+                startBtn.disabled = true;
+                startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Select Items to Find`;
+            }
         }
     }
-}
 
-// Discovery Event Map Logic
-function handleDiscoveryMap(cardId) {
-    const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
-    const { seedInput, levelInput, fruitsFoundInput } = getCardElements(card);
-    const rngOffsetInput = card.querySelector('.rng-offset-input');
-    
-    const rootSeed = parseInt(seedInput.value, 10);
-    const currentLevel = parseInt(levelInput.value, 10);
-    const fruitsFound = parseInt(fruitsFoundInput.value, 10) || 0;
-    const manualOffset = parseInt(rngOffsetInput.value, 10) || 0;
-    
-    if (isNaN(rootSeed)) { toastr["error"]("Please enter a Seed!", "Error"); return; }
-    
-    const modal = document.getElementById('discoveryModal');
-    const content = document.getElementById('discoveryModalContent');
-    
-    const rng = new UnityRandom(rootSeed);
-    for(let i=0; i<manualOffset; i++) rng.range(0, 100);
+    // Discovery Event Map Logic
+    let lastDiscoveryResults = null;
 
-    const eventData = simulateDiscoveryEventFromRNG(rng);
-    
-    content.innerHTML = '';
-    eventData.forEach(levelData => {
-            const levelSection = document.createElement('div');
-            levelSection.className = 'level-section w-100 mb-5';
+    function handleDiscoveryMap(cardId) {
+        const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+        const seedInput = card.querySelector('.seed-input');
+        const rootSeed = parseInt(seedInput.value, 10);
+
+        if (isNaN(rootSeed)) { toastr["error"]("Please enter a Seed!", "Error"); return; }
+
+        const modal = document.getElementById('discoveryModal');
+        const content = document.getElementById('discoveryModalContent');
+
+        // Show loading feedback
+        content.innerHTML = '<div class="text-white w-100 text-center p-5"><div class="spinner-border text-success mb-3"></div><br>Generating Discovery Maps...</div>';
+        modal.style.display = 'flex';
+
+        setTimeout(() => {
+            lastDiscoveryResults = simulateDiscoveryMapFromSeed(rootSeed);
             
-            let levelHtml = `
+            // Set up filter listener once
+            const filterSelect = document.getElementById('discoveryLevelFilter');
+            if (filterSelect) {
+                filterSelect.value = 'all';
+                filterSelect.onchange = (e) => renderDiscoveryModalContent(e.target.value);
+            }
+
+            renderDiscoveryModalContent('all');
+        }, 100);
+    }
+
+    function renderDiscoveryModalContent(filterLevel = 'all') {
+        const content = document.getElementById('discoveryModalContent');
+        if (!lastDiscoveryResults) return;
+
+        content.innerHTML = '';
+        let foundAny = false;
+
+        lastDiscoveryResults.forEach(lvl => {
+            if (filterLevel !== 'all' && lvl.level.toString() !== filterLevel) return;
+            foundAny = true;
+
+            const levelSection = document.createElement('div');
+            levelSection.className = 'w-100 mb-5';
+            levelSection.innerHTML = `
                 <div class="d-flex align-items-center mb-4">
-                    <h3 class="text-warning mb-0"><i class="fas fa-layer-group me-2"></i>LEVEL ${levelData.level}</h3>
+                    <h3 class="text-warning mb-0"><i class="fas fa-layer-group me-2"></i>LEVEL ${lvl.level}</h3>
                     <div class="ms-3 flex-grow-1" style="height: 2px; background: linear-gradient(to right, rgba(255,193,7,0.5), transparent);"></div>
                 </div>
-                <div class="d-flex flex-wrap gap-4 justify-content-center">
             `;
-            
-            levelData.stages.forEach(stageData => {
-                let isCompleted = (levelData.level < currentLevel) || (levelData.level === currentLevel && stageData.stage <= fruitsFound);
-                let opacity = isCompleted ? '0.4' : '1';
-                let borderStyle = isCompleted ? 'border: 1px dashed rgba(255,255,255,0.1)' : 'border: 1px solid rgba(255,255,255,0.2)';
 
-                let stageBoxHtml = `
-                    <div class="discovery-run-box p-3 rounded" style="background: rgba(255,255,255,0.05); ${borderStyle}; opacity: ${opacity}; min-width: 250px; transition: all 0.3s;">
-                        <h5 class="text-success mb-3 text-center"><i class="fas fa-apple-alt me-2"></i>Run ${stageData.stage}</h5>
-                        <div style="display: grid; grid-template-columns: repeat(${stageData.width}, 50px); gap: 8px; margin: 0 auto; width: fit-content; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px;">
-                `;
-                
-                for (let uiIdx = 0; uiIdx < stageData.width * stageData.height; uiIdx++) {
-                    const row = Math.floor(uiIdx / stageData.width);
-                    const col = uiIdx % stageData.width;
-                    const gameIdx = (stageData.height - 1 - row) * stageData.width + col;
-                    const shufflePos = stageData.shuffle ? stageData.shuffle.indexOf(gameIdx) : -1;
-                    
-                    let bgColor = 'rgba(255, 255, 255, 0.03)';
-                    let icon = '';
+            const stagesContainer = document.createElement('div');
+            stagesContainer.className = 'd-flex flex-wrap gap-4 justify-content-center';
 
-                    // Predicted rewards based on the RNG rolls
-                    if (stageData.type === 'shuffle') {
-                        if (shufflePos === stageData.fruitShufflePos) {
-                            bgColor = 'rgba(241, 196, 15, 0.4)';
-                            icon = '<i class="fas fa-apple-alt text-warning"></i>';
-                        } else if (shufflePos === stageData.gemShufflePos) {
-                            bgColor = 'rgba(155, 89, 182, 0.4)';
-                            icon = '<i class="fas fa-gem text-info"></i>';
+            lvl.stages.forEach(run => {
+                const runBox = document.createElement('div');
+                runBox.className = 'discovery-run-box p-3';
+
+                let gridHtml = '';
+                let currentIndex = 0;
+
+                for (let r = 0; r < run.height; r++) {
+                    gridHtml += '<div class="d-flex gap-1 mb-1">';
+                    for (let c = 0; c < run.width; c++) {
+                        const isFruit = currentIndex === run.fruitPos;
+                        const isGem = run.gems.includes(currentIndex);
+
+                        let bgColor = 'rgba(255,255,255,0.05)';
+                        let extraClass = '';
+                        let icon = '';
+                        if (isFruit) {
+                            bgColor = 'rgba(255, 193, 7, 0.2)';
+                            extraClass = 'glow-fruit';
+                            icon = '<img src="./src/FruitPlatter.png" style="width: 32px; height: 32px; object-fit: contain;">';
+                        } else if (isGem) {
+                            bgColor = 'rgba(0, 255, 136, 0.15)';
+                            extraClass = 'glow-gem';
+                            icon = '<img src="./src/Gem.png" style="width: 28px; height: 28px; object-fit: contain;">';
                         }
-                    } else {
-                        // Generation Mode (Level 1+)
-                        if (gameIdx === stageData.fruitPos) {
-                            bgColor = 'rgba(241, 196, 15, 0.4)';
-                            icon = '<i class="fas fa-apple-alt text-warning"></i>';
-                        } else if (stageData.gemPositions.includes(gameIdx)) {
-                            bgColor = 'rgba(155, 89, 182, 0.4)';
-                            icon = '<i class="fas fa-gem text-info"></i>';
-                        }
+
+                        gridHtml += `
+                            <div class="discovery-tile ${extraClass}" style="width: 44px; height: 44px; background: ${bgColor}; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative;" title="Index: ${currentIndex}">
+                                ${icon}
+                                <small style="position: absolute; font-size: 8px; color: rgba(255,255,255,0.2); bottom: 1px; right: 2px;">${currentIndex}</small>
+                            </div>`;
+                        currentIndex++;
                     }
-
-                    stageBoxHtml += `
-                        <div class="discovery-tile" style="width: 50px; height: 50px; background: ${bgColor}; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; cursor: help;" title="Shuffle Pos: ${shufflePos}">
-                            <small style="position: absolute; top: 1px; left: 2px; font-size: 8px; opacity: 0.3;">${uiIdx}</small>
-                            <small style="position: absolute; bottom: 1px; right: 2px; font-size: 8px; opacity: 0.3;">${gameIdx}</small>
-                        <div style="font-size: 16px;">${icon || (shufflePos >= 0 ? '<span style="opacity: 0.1; font-size: 10px;">' + shufflePos + '</span>' : '')}</div>
-                        </div>
-                    `;
+                    gridHtml += '</div>';
                 }
-                
-                stageBoxHtml += `</div></div>`;
-                levelHtml += stageBoxHtml;
+
+                runBox.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge bg-success" style="background: linear-gradient(45deg, #28a745, #1e7e34) !important;">Stage ${run.stage}</span>
+                    </div>
+                    <div class="d-flex flex-column align-items-center">
+                        ${gridHtml}
+                    </div>
+                `;
+                stagesContainer.appendChild(runBox);
             });
-            
-            levelHtml += `</div>`;
-            levelSection.innerHTML = levelHtml;
+
+            levelSection.appendChild(stagesContainer);
             content.appendChild(levelSection);
         });
-        
-        modal.style.display = 'flex';
+
+        if (!foundAny) {
+            content.innerHTML = '<div class="text-white-50 p-5">No maps found for this level.</div>';
+        }
     }
 
-function openSmartFindModal(cardId) {
-    currentSearchMode = 'smart';
-    currentSearchCard = cardId;
-    smartSearchTargetItems = []; // Resetta la selezione
-    const [chestType, eventType] = cardId.split('_');
 
-    const availableItems = getAvailableItemsForChest(chestType, eventType);
-    document.getElementById('searchModalTitle').textContent = `Smart Find Items in ${eventType} Chest`;
-    populateItemGrid(availableItems);
+    function openSmartFindModal(cardId) {
+        currentSearchMode = 'smart';
+        currentSearchCard = cardId;
+        // Reset selection
+        const [chestType, eventType] = cardId.split('_');
 
-    // Mostra gli elementi corretti per questa modale
-    document.getElementById('smartFindControls').style.display = 'block';
-    document.getElementById('itemSearchGroup').style.display = 'block';
-    document.getElementById('itemGrid').style.display = 'flex';
-    document.getElementById('searchResults').style.display = 'none';
+        const availableItems = getAvailableItemsForChest(chestType, eventType);
+        document.getElementById('searchModalTitle').textContent = `Smart Find Items in ${eventType} Chest`;
+        populateItemGrid(availableItems);
 
-    // Rimuovi il vecchio event listener e aggiungine uno nuovo per sicurezza
-    const startBtn = document.getElementById('startSmartFindSearchBtn');
-    const newStartBtn = startBtn.cloneNode(true);
-    startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+        // Show correct elements for this modal
+        document.getElementById('smartFindControls').style.display = 'block';
+        document.getElementById('itemSearchGroup').style.display = 'block';
+        document.getElementById('itemGrid').style.display = 'flex';
+        document.getElementById('searchResults').style.display = 'none';
 
-    newStartBtn.addEventListener('click', () => {
-        if (smartSearchTargetItems.length > 0) {
-            performSmartSearch(smartSearchTargetItems, currentSearchCard);
-        }
-    });
-    
-    updateSmartFindButton(); // Aggiorna lo stato iniziale del bottone
-    document.getElementById('searchOverlay').style.display = 'flex';
-}
+        // Remove old event listener and add a new one for safety
+        const startBtn = document.getElementById('startSmartFindSearchBtn');
+        const newStartBtn = startBtn.cloneNode(true);
+        startBtn.parentNode.replaceChild(newStartBtn, startBtn);
+
+        newStartBtn.addEventListener('click', () => {
+            if (smartSearchTargetItems.length > 0) {
+                performSmartSearch(smartSearchTargetItems, currentSearchCard);
+            }
+        });
+
+        updateSmartFindButton(); // Update initial button state
+        document.getElementById('searchOverlay').style.display = 'flex';
+    }
     // START: Calculators Logic
     function calculatePetFood() {
         const targetAmount = parseInt(document.getElementById('petFoodAmount').value, 10);
         const resultsContent = document.getElementById('petFoodResultsContent');
         const resultsContainer = document.getElementById('petFoodResults');
         resultsContainer.style.display = 'block';
-        
+
         if (isNaN(targetAmount) || targetAmount <= 0) {
             resultsContent.innerHTML = `<div class="alert alert-danger">Please enter a valid positive number.</div>`;
             return;
@@ -1575,11 +1679,11 @@ function openSmartFindModal(cardId) {
             const result = simulateChestOpening(currentSeed, LOOT_TABLES.small);
             currentSeed = result.nextSeed;
         });
-        
+
         let totalPetFood = 0;
         let boxesOpened = 0;
         const maxAttempts = 50000;
-        
+
         while (totalPetFood < targetAmount && boxesOpened < maxAttempts) {
             const result = simulateChestOpening(currentSeed, LOOT_TABLES.small);
             boxesOpened++;
@@ -1612,15 +1716,15 @@ function openSmartFindModal(cardId) {
             resultsContent.innerHTML = `<div class="alert alert-danger">Please set a seed for this chest type first.</div>`;
             return;
         }
-        
+
         let currentSeed = state.initialSeed;
         let currentXp = 0;
         state.history.forEach(action => {
             let result;
-            if (action.type.startsWith('adventure')) result = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage,action.type);
+            if (action.type.startsWith('adventure')) result = simulateAdventureChestOpening(currentSeed, action.level, action.eventType, action.vaultPercentage, action.type);
             else if (action.type === 'egg') result = simulateEggOpening(currentSeed, action.rarity);
             else result = simulateChestOpening(currentSeed, LOOT_TABLES[action.type], action.eventType);
-            
+
             result.items.forEach(item => {
                 currentXp += getItemXp(item);
             });
@@ -1633,9 +1737,9 @@ function openSmartFindModal(cardId) {
 
         while (currentXp < targetAmount && boxesOpened < maxAttempts) {
             let result;
-            const lastAction = state.history.length > 0 ? state.history[state.history.length-1] : { type: chestType, eventType: eventType, rarity: 'Rare', level: 1, vaultPercentage: 0 };
+            const lastAction = state.history.length > 0 ? state.history[state.history.length - 1] : { type: chestType, eventType: eventType, rarity: 'Rare', level: 1, vaultPercentage: 0 };
 
-            if (lastAction.type.startsWith('adventure')) result = simulateAdventureChestOpening(currentSeed, lastAction.level, lastAction.eventType, lastAction.vaultPercentage,lastAction.type);
+            if (lastAction.type.startsWith('adventure')) result = simulateAdventureChestOpening(currentSeed, lastAction.level, lastAction.eventType, lastAction.vaultPercentage, lastAction.type);
             else if (lastAction.type === 'egg') result = simulateEggOpening(currentSeed, lastAction.rarity);
             else result = simulateChestOpening(currentSeed, LOOT_TABLES[lastAction.type], lastAction.eventType);
 
@@ -1645,8 +1749,8 @@ function openSmartFindModal(cardId) {
             });
             currentSeed = result.nextSeed;
         }
-        
-         resultsContent.innerHTML = boxesOpened >= maxAttempts
+
+        resultsContent.innerHTML = boxesOpened >= maxAttempts
             ? `<div class="alert alert-warning">Could not reach the target within ${maxAttempts} boxes. Target might be too high.</div>`
             : `<div class="alert alert-success">You need to open <strong>${boxesOpened}</strong> more chests to reach at least <strong>${targetAmount}</strong> XP. You will have exactly <strong>${currentXp}</strong> XP.</div>`;
     }
@@ -1654,7 +1758,7 @@ function openSmartFindModal(cardId) {
 
     function updateAndDisplayEggCounters() {
         // Start with a copy of the user-defined global counts
-        let eggCounts = { ...globalEggCounts }; 
+        let eggCounts = { ...globalEggCounts };
 
         // Add eggs from the Pet Box history
         const state = cardStates['pet'];
@@ -1732,7 +1836,7 @@ function openSmartFindModal(cardId) {
         counterContainer.id = 'egg-counter-container';
         counterContainer.className = 'd-flex justify-content-around align-items-center mt-3 p-2 rounded';
         counterContainer.style.background = 'rgba(0,0,0,0.2)';
-        
+
         const rarities = ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate'];
         counterContainer.innerHTML = rarities.map(rarity => `
             <div class="text-center text-white">
@@ -1740,7 +1844,7 @@ function openSmartFindModal(cardId) {
                 <span id="egg-count-${rarity.toLowerCase()}" class="d-block fw-bold" style="font-size: 0.9em;">0</span>
             </div>
         `).join('');
-        
+
         const buttonsDiv = petCardBody.querySelector('.d-flex.flex-wrap.gap-2.mb-3');
         buttonsDiv?.insertAdjacentElement('afterend', counterContainer);
     }
@@ -1764,7 +1868,7 @@ function openSmartFindModal(cardId) {
         }
     });
     document.querySelectorAll('.card[data-card-id]').forEach(card => renderCard(card.dataset.cardId));
-    
+
     // Add event listeners for the new global egg inputs
     document.getElementById('global-egg-counter-container').addEventListener('input', (event) => {
         const input = event.target;
@@ -1783,7 +1887,7 @@ function openSmartFindModal(cardId) {
             if (!isNaN(seedValue)) { if (!cardStates[cardId]) cardStates[cardId] = { initialSeed: seedValue, history: [] }; else cardStates[cardId].initialSeed = seedValue; saveState(); }
         });
     });
-    
+
     document.querySelectorAll('.card[data-card-id^="adventure_"]').forEach(card => {
         const { cardId, levelInput, vaultInput } = getCardElements(card);
         const saveAdventureState = () => {
@@ -1791,7 +1895,7 @@ function openSmartFindModal(cardId) {
             if (levelInput) cardStates[cardId].level = levelInput.value;
             if (vaultInput) cardStates[cardId].vaultPercentage = vaultInput.value;
             saveState();
-            renderCard(cardId); 
+            renderCard(cardId);
         };
         levelInput?.addEventListener('keyup', saveAdventureState);
         vaultInput?.addEventListener('keyup', saveAdventureState);
@@ -1800,7 +1904,7 @@ function openSmartFindModal(cardId) {
     const vaultInputs = document.querySelectorAll('.vault-percentage-input');
     vaultInputs.forEach(input => { input.addEventListener('input', (e) => { vaultInputs.forEach(otherInput => { if (otherInput !== e.target) otherInput.value = e.target.value; }); }); });
 
-    document.getElementById('mainGrid').addEventListener('click', (event) => {
+    document.getElementById('tool-container').addEventListener('click', (event) => {
         const button = event.target.closest('button'); if (!button) return;
         const card = button.closest('.card'); if (!card) return;
         const { cardId, seedInput, levelInput, vaultInput } = getCardElements(card);
@@ -1813,20 +1917,21 @@ function openSmartFindModal(cardId) {
             return;
         }
         if (action === 'toggle-history') { if (cardStates[cardId]) { cardStates[cardId].isHistoryVisible = !cardStates[cardId].isHistoryVisible; saveState(); renderCard(cardId); } return; }
-        if (action === 'toggle-what-if') { 
-            if (cardStates[cardId]) { 
-                cardStates[cardId].isWhatIfVisible = !cardStates[cardId].isWhatIfVisible; 
-                saveState(); 
-                renderCard(cardId); 
-            } 
-            return; 
+        if (action === 'toggle-what-if') {
+            if (cardStates[cardId]) {
+                cardStates[cardId].isWhatIfVisible = !cardStates[cardId].isWhatIfVisible;
+                saveState();
+                renderCard(cardId);
+            }
+            return;
         }
         if (action === 'local-search') { openLocalSearch(cardId); return; }
         if (action === 'discovery-map') { handleDiscoveryMap(cardId); return; }
         if (action === 'pet-food-calculator') {
-             document.getElementById('petFoodModal').style.display = 'flex';
-              document.getElementById('petFoodResults').style.display = 'none';
-               document.getElementById('petFoodAmount').value = ''; return; }
+            document.getElementById('petFoodModal').style.display = 'flex';
+            document.getElementById('petFoodResults').style.display = 'none';
+            document.getElementById('petFoodAmount').value = ''; return;
+        }
         if (action === 'xp-calculator') {
             currentCalcCardId = cardId; const title = card.querySelector('h5').textContent.trim();
             document.getElementById('xpModalTitle').innerHTML = `<i class="fas fa-star me-2 text-warning"></i>XP Calc: ${title}`;
@@ -1836,7 +1941,7 @@ function openSmartFindModal(cardId) {
             let state = cardStates[cardId]; let seedFromInput = parseInt(seedInput.value, 10);
             if ((!state || state.initialSeed === null) && isNaN(seedFromInput)) { toastr["error"]("Please enter an initial Seed first!", "Error"); return; }
             if (!state) { state = { initialSeed: seedFromInput, history: [], isHistoryVisible: true, isWhatIfVisible: false }; cardStates[cardId] = state; }
-             if (state.initialSeed === null) {state.initialSeed = seedFromInput; }
+            if (state.initialSeed === null) { state.initialSeed = seedFromInput; }
             const { chestType, eventType, rarity } = button.dataset;
             let level = null, vaultPercentage = 0;
             if (chestType === 'discovery') {
@@ -1846,17 +1951,17 @@ function openSmartFindModal(cardId) {
             if (chestType.startsWith('adventure')) {
                 level = parseInt(levelInput.value, 10);
                 if (isNaN(level) || level < 1 || level > 100) { toastr["error"]("Please enter a valid Level (1-100).", "Error"); return; }
-                
+
                 vaultPercentage = parseInt(vaultInput.value, 10) || 0;
-                if(vaultPercentage>35) { toastr["error"]("Please enter a valid vault percentage (0-35) for the search.", "Error"); return; }
+                if (vaultPercentage > 35) { toastr["error"]("Please enter a valid vault percentage (0-35) for the search.", "Error"); return; }
             }
             state.history.push({ type: chestType, eventType, rarity, level, vaultPercentage }); saveState(); renderCard(cardId);
-           }
-         if (action === 'smart-find') {
-        openSmartFindModal(cardId);
-        return;
-          }
-       if (action === 'smart-xp') {
+        }
+        if (action === 'smart-find') {
+            openSmartFindModal(cardId);
+            return;
+        }
+        if (action === 'smart-xp') {
             openSmartXpModal(cardId);
             return;
         }
@@ -1864,37 +1969,37 @@ function openSmartFindModal(cardId) {
 
     const clickImages = ["./src/PerfectParticle.png", "./src/DoubleParticleEN.png", "./src/DivineParticleEN.png", "./src/GreedyParticleEn.png", "./src/GoldenParticleEn.png", "./src/AnotherParticleEN.png"];
     document.body.addEventListener("click", function (e) {
-      const imgSrc = clickImages[Math.floor(Math.random() * clickImages.length)];
-      const img = document.createElement("img");
-      img.src = imgSrc;
-      img.classList.add("click-effect");
-      img.style.left = `${e.pageX - 25}px`;
-      img.style.top = `${e.pageY - 30}px`;
-      const angle = (Math.random() * 20 - 10).toFixed(2);
-      img.style.setProperty("--rand-rot", `${angle}deg`);
-      document.body.appendChild(img);
-      img.addEventListener("animationend", () => img.remove());
+        const imgSrc = clickImages[Math.floor(Math.random() * clickImages.length)];
+        const img = document.createElement("img");
+        img.src = imgSrc;
+        img.classList.add("click-effect");
+        img.style.left = `${e.pageX - 25}px`;
+        img.style.top = `${e.pageY - 30}px`;
+        const angle = (Math.random() * 20 - 10).toFixed(2);
+        img.style.setProperty("--rand-rot", `${angle}deg`);
+        document.body.appendChild(img);
+        img.addEventListener("animationend", () => img.remove());
     });
 
-   document.getElementById('toggleTutorial').addEventListener('click', function() {
+    document.getElementById('toggleTutorial').addEventListener('click', function () {
         var tutorialCard = document.getElementById('tutorialCard');
-        if (tutorialCard.style.display === 'none') { 
-            tutorialCard.style.display = 'block'; 
-            this.textContent = 'Hide Tutorial'; 
-        } else { 
-            tutorialCard.style.display = 'none'; 
-            this.textContent = 'Show Tutorial'; 
+        if (tutorialCard.style.display === 'none') {
+            tutorialCard.style.display = 'block';
+            this.textContent = 'Hide Tutorial';
+        } else {
+            tutorialCard.style.display = 'none';
+            this.textContent = 'Show Tutorial';
         }
     });
 
-    document.getElementById('showAndroidTutorial').addEventListener('click', function() {
+    document.getElementById('showAndroidTutorial').addEventListener('click', function () {
         document.getElementById('androidTutorial').style.display = 'block';
         document.getElementById('iosTutorial').style.display = 'none';
         this.classList.add('active');
         document.getElementById('showIosTutorial').classList.remove('active');
     });
 
-    document.getElementById('showIosTutorial').addEventListener('click', function() {
+    document.getElementById('showIosTutorial').addEventListener('click', function () {
         document.getElementById('androidTutorial').style.display = 'none';
         document.getElementById('iosTutorial').style.display = 'block';
         this.classList.add('active');
@@ -1903,7 +2008,7 @@ function openSmartFindModal(cardId) {
 
     document.getElementById('calculatePetFoodBtn').addEventListener('click', calculatePetFood);
     document.getElementById('calculateXpBtn').addEventListener('click', calculateXP);
-    
+
     // --- SAVEGAME IMPORT LOGIC ---
     document.getElementById('importSaveBtn').addEventListener('click', () => {
         document.getElementById('savegameImport').click();
@@ -1921,7 +2026,7 @@ function openSmartFindModal(cardId) {
                 const jsonEnd = content.lastIndexOf('}');
                 if (jsonStart === -1 || jsonEnd === -1) throw new Error("JSON non trovato nel file");
                 content = content.substring(jsonStart, jsonEnd + 1);
-                
+
                 const savegame = JSON.parse(content);
                 const data = savegame.Data || savegame;
                 const gameData = data.GameSavegame;
@@ -1930,7 +2035,7 @@ function openSmartFindModal(cardId) {
                 // 1. Seed dei forzieri
                 const chestIdMap = {
                     0: 'small', 1: 'big', 9: 'adventure_Zeus', 10: 'adventure_Pirate',
-                    4: 'event_SeaPort', 3: 'event_Space', 2: 'event_Mine', 
+                    4: 'event_SeaPort', 3: 'event_Space', 2: 'event_Mine',
                     5: 'event_MiddleAges', 15: 'event_Alchemist', 7: 'clan', 6: 'pet'
                 };
 
@@ -1973,7 +2078,7 @@ function openSmartFindModal(cardId) {
                 if (picklockArtifact) {
                     const vaultLevel = picklockArtifact.Level || 0;
                     const vaultPercentage = Math.min(35, vaultLevel + 4); // Livello 1 = 5%, +1% per livello, max 35%
-                    
+
                     ['adventure_Zeus', 'adventure_Pirate'].forEach(cardId => {
                         if (!cardStates[cardId]) cardStates[cardId] = { initialSeed: null, history: [] };
                         cardStates[cardId].vaultPercentage = vaultPercentage;
@@ -1987,7 +2092,7 @@ function openSmartFindModal(cardId) {
                     cardStates['discovery'].initialSeed = discoveryData.Seed;
                     cardStates['discovery'].level = discoveryData.Level || 0;
                     cardStates['discovery'].fruitsFound = discoveryData.ClaimedTiles?.length || 0;
-                    
+
                     const discoveryCard = document.querySelector('.card[data-card-id="discovery"]');
                     if (discoveryCard) {
                         const { seedInput, levelInput, fruitsFoundInput } = getCardElements(discoveryCard);
@@ -2015,7 +2120,7 @@ function openSmartFindModal(cardId) {
                     }
                 }
 
-                // Aggiorna UI
+                // Update UI
                 document.querySelectorAll('.card[data-card-id]').forEach(card => {
                     const cardId = card.dataset.cardId;
                     const state = cardStates[cardId];
@@ -2028,14 +2133,14 @@ function openSmartFindModal(cardId) {
                     }
                     renderCard(cardId);
                 });
-                
+
                 updateAndDisplayEggCounters();
-                toastr.success("Savegame importato con successo!");
+                toastr.success("Savegame imported successfully!");
                 saveState();
 
             } catch (error) {
                 console.error("Import error:", error);
-                toastr.error("Errore durante l'importazione del file.");
+                toastr.error("Error importing file.");
             }
         };
         reader.readAsText(file);
@@ -2056,5 +2161,43 @@ function openSmartFindModal(cardId) {
         });
     }
 
+    // Occasional funny messages to encourage support and import
+
+    const funnyMessages = [
+        "Psst! Did you know a coffee makes me code 2x faster? ☕️",
+        "Feeling lucky? Import your savegame and see your future! 🔮",
+        "Don't let your gems stay hidden. Import your save now! 💎",
+        "Coding this was hard... but clicking that coffee button is easy! 😉",
+        "Want to support the dev? A coffee costs less than a Small Box! 📦☕️",
+        "Found a Mythic? Celebrate by buying me a coffee! 🥳☕️",
+        "Save time, use the Import button! It's like magic, but with JSON. ✨",
+        "My code is like a Pet... it needs attention and sometimes a coffee! 🐶☕️",
+        "I promise: No ads, ever. Just pure RNG goodness. (And maybe a coffee? 🥺)",
+        "Is your RNG bad today? Maybe a coffee for the dev will fix it! (Not scientifically proven, but worth a try) 🍀☕️",
+        "Legend says every coffee bought reveals a hidden fruit location... (Just kidding, but I'd appreciate it!) 😂",
+        "Help me reach 'Caffeine Overdrive'! ⚡️☕️",
+        "Your savegame called... it misses you. Import it! 🏠💎"
+    ];
+
+
+    // Show a message 30 seconds after load, then every 3 minutes
+    setTimeout(() => {
+        showFunMessage();
+    }, 30000);
+
+    setInterval(showFunMessage, 180000);
+
+    function showFunMessage() {
+        const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+        toastr.info(randomMessage, "Hey there! 👋", {
+            "closeButton": true,
+            "progressBar": true,
+            "timeOut": "10000",
+            "positionClass": "toast-bottom-left",
+            "preventDuplicates": true
+        });
+    }
+
 
 }); // End of DOMContentLoaded
+
