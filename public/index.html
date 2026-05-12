@@ -543,6 +543,29 @@
             pointer-events: none;
             user-select: none;
         }
+        .form-control {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }
+
+        .input-group-text {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5) !important;
+            opacity: 1;
+        }
+
+        .form-control:focus {
+            background: rgba(0, 0, 0, 0.4) !important;
+            color: white !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 
@@ -1220,7 +1243,7 @@
                         <div class="card-body">
                             <div class="input-group mb-3">
                                 <span class="input-group-text"><i class="fas fa-seedling"></i> Seed</span>
-                                <input type="number" class="seed-input form-control" placeholder="Discovery Seed">
+                                <input type="number" class="seed-input form-control" placeholder="DiscoveryEventSavegame">
                             </div>
                             <div class="input-group mb-3">
                                 <span class="input-group-text"><i class="fas fa-layer-group"></i> Level</span>
