@@ -459,7 +459,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return avgXpPerItem * levelData.items;
     }
 
-    toastr.options = { "positionClass": "toast-top-center" };
+    toastr.options = { 
+        "positionClass": "toast-top-center",
+        "onclick": function() { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
+    };
 
     // Simulation Logic
     function determinePrizeType(roll, table) {
@@ -2194,7 +2197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             "progressBar": true,
             "timeOut": "10000",
             "positionClass": "toast-bottom-left",
-            "preventDuplicates": true
+            "preventDuplicates": true,
+            "onclick": function() { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
         });
     }
 
