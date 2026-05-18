@@ -566,13 +566,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         4: { width: 5, height: 7, fruits: 6 }
     };
 
+    // I valori matematici estratti dall'algoritmo di C#
+    const GEM_RATIO_NORMAL = 0.20;
+    const GEM_RATIO_SPECIAL = 0.70;
+    const SPECIAL_INTERVAL = 4;
+
     function getNumGems(level, stage) {
-        if (level === 0) return 1;
-        if (level === 1) return stage === 1 ? 11 : 3;
-        if (level === 2) return (stage === 1 || stage === 5) ? 17 : 5;
-        if (level === 3) return 6;
-        if (level === 4) return 6;
-        return 1;
+        // 1. Calcola lo "Stage Globale" (somma gli stage dei livelli precedenti)
+        let globalStage = 0;
+        for (let l = 0; l < level; l++) {
+            globalStage += DISCOVERY_CONFIG[l].fruits; // 'fruits' equivale al numero di stage
+        }
+        globalStage += stage; // Aggiunge lo stage corrente (1-based)
+
+        // 2. Applica la logica Modulo di Unity per decidere il Ratio
+        const isSpecial = (globalStage % SPECIAL_INTERVAL === 0);
+        const currentRatio = isSpecial ? GEM_RATIO_SPECIAL : GEM_RATIO_NORMAL;
+
+        // 3. Calcola il numero esatto emulando il casting (int) del C#
+        const totalTiles = DISCOVERY_CONFIG[level].width * DISCOVERY_CONFIG[level].height;
+        return Math.floor(totalTiles * currentRatio);
     }
 
     function simulateDiscoveryMapFromSeed(seedBase, stageOffset = -1) {
@@ -584,11 +597,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             for (let s = 1; s <= config.fruits; s++) {
 
-                // Applichiamo l'offset che hai trovato (-1)
                 const levelId = (l * 1000) + s + stageOffset;
                 const stageRng = new SystemRandom((seedBase + levelId) | 0);
 
-                // Creazione coordinate in memoria (Column-Major)
                 const coords = [];
                 for (let x = 0; x < config.width; x++) {
                     for (let y = 0; y < config.height; y++) {
@@ -596,7 +607,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // Fisher-Yates Shuffle
                 for (let i = coords.length - 1; i > 0; i--) {
                     const j = stageRng.range(0, i + 1);
                     const temp = coords[i];
@@ -604,34 +614,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                     coords[j] = temp;
                 }
 
-                // Estrazione Oggetti
+                // Chiama la nuova funzione matematica dinamica!
                 const numGems = getNumGems(l, s);
                 const gemsCoords = coords.slice(0, numGems);
                 const fruitCoord = coords[numGems];
 
-                // === LA TRASLAZIONE DELLE PRINT ===
-                // Scorriamo la griglia ESATTAMENTE come faceva la stringa
                 let fruitPos1D = -1;
                 let gemsPos1D = [];
                 let currentIndex = 0;
 
+                // Mappatura universale per l'interfaccia HTML
                 for (let y = config.height - 1; y >= 0; y--) {
                     for (let x = 0; x < config.width; x++) {
-                        // Controlliamo chi c'è in questa coordinata
                         const isGem = gemsCoords.some(g => g.x === x && g.y === y);
                         const isFruit = fruitCoord.x === x && fruitCoord.y === y;
 
                         if (isFruit) fruitPos1D = currentIndex;
                         if (isGem) gemsPos1D.push(currentIndex);
 
-                        currentIndex++; // Avanziamo l'indice da 0 a (Area - 1)
+                        currentIndex++;
                     }
                 }
 
                 stages.push({
                     stage: s,
                     fruitPos: fruitPos1D,
-                    gems: gemsPos1D, // Sono già ordinati naturalmente da 0 in poi!
+                    gems: gemsPos1D,
                     width: config.width,
                     height: config.height
                 });
