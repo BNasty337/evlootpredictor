@@ -12,20 +12,20 @@ class SystemRandom {
         this.seedArray = new Array(56).fill(0);
 
         let subtraction = (seed === -2147483648) ? 2147483647 : Math.abs(seed | 0);
-        let mj = this.MSEED - subtraction;
+        let mj = (this.MSEED - subtraction) | 0;  // ← wrap int32 come C#
         this.seedArray[55] = mj;
         let mk = 1;
         for (let i = 1; i < 55; i++) {
             let ii = (21 * i) % 55;
             this.seedArray[ii] = mk;
-            mk = mj - mk;
-            if (mk < 0) mk += this.MBIG;
+            mk = (mj - mk) | 0;  // ← wrap int32
+            if (mk < 0) mk = (mk + this.MBIG) | 0;
             mj = this.seedArray[ii];
         }
         for (let k = 1; k < 5; k++) {
             for (let i = 1; i < 56; i++) {
-                this.seedArray[i] -= this.seedArray[1 + (i + 30) % 55];
-                if (this.seedArray[i] < 0) this.seedArray[i] += this.MBIG;
+                let num = (this.seedArray[i] - this.seedArray[1 + (i + 30) % 55]) | 0;  // ← wrap int32
+                this.seedArray[i] = num < 0 ? (num + this.MBIG) | 0 : num;
             }
         }
         this.inext = 0;
@@ -35,8 +35,8 @@ class SystemRandom {
     sample() {
         if (++this.inext >= 56) this.inext = 1;
         if (++this.inextp >= 56) this.inextp = 1;
-        let retVal = this.seedArray[this.inext] - this.seedArray[this.inextp];
-        if (retVal < 0) retVal += this.MBIG;
+        let retVal = (this.seedArray[this.inext] - this.seedArray[this.inextp]) | 0;  // ← wrap int32
+        if (retVal < 0) retVal = (retVal + this.MBIG) | 0;
         this.seedArray[this.inext] = retVal;
         return retVal * (1.0 / this.MBIG);
     }
@@ -459,9 +459,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return avgXpPerItem * levelData.items;
     }
 
-    toastr.options = { 
+    toastr.options = {
         "positionClass": "toast-top-center",
-        "onclick": function() { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
+        "onclick": function () { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
     };
 
     // Simulation Logic
@@ -1537,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         setTimeout(() => {
             lastDiscoveryResults = simulateDiscoveryMapFromSeed(rootSeed);
-            
+
             // Set up filter listener once
             const filterSelect = document.getElementById('discoveryLevelFilter');
             if (filterSelect) {
@@ -2198,7 +2198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             "timeOut": "10000",
             "positionClass": "toast-bottom-left",
             "preventDuplicates": true,
-            "onclick": function() { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
+            "onclick": function () { window.open('https://buymeacoffee.com/1vcian', '_blank'); }
         });
     }
 
