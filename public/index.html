@@ -57,7 +57,24 @@
             /* Ensure radius is consistent */
         }
 
+        .garden-card {
+            background: linear-gradient(135deg, #2d5a27 0%, #1e3c1a 100%) !important;
+            border: 2px solid #4a7c44 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(74, 124, 68, 0.3) !important;
+        }
+
+        .garden-card .chest-header {
+            background: linear-gradient(45deg, #3d7a35, #2d5a27) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .garden-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(74, 124, 68, 0.4) !important;
+        }
+
         body {
+
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 
             font-family: 'Roboto', sans-serif;
@@ -411,9 +428,9 @@
             height: fit-content;
         }
 
-        /* Inserisci questo CSS nel tag <style> del tuo file index.html */
+        /* Insert this CSS into the <style> tag of your index.html file */
 
-        /* Wrapper invisibile che riceve l'evento hover */
+        /* Invisible wrapper that receives the hover event */
         .lock-wrapper {
             position: relative;
             display: block;
@@ -425,7 +442,7 @@
             /* Necessario per i bottoni */
         }
 
-        /* L'overlay, che ora è FRATELLO dell'elemento bloccato */
+        /* The overlay, which is now a SIBLING of the locked element */
         .login-overlay {
             position: absolute;
             top: 0;
@@ -441,17 +458,17 @@
             font-weight: 900;
             font-size: 1.2rem;
             cursor: pointer;
-            /* Cambiato a pointer per indicare che è cliccabile */
+            /* Changed to pointer to indicate it's clickable */
             z-index: 10;
 
             opacity: 0;
-            /* Invisibile di default */
+            /* Invisible by default */
             pointer-events: none;
-            /* Non interattivo di default */
+            /* Non-interactive by default */
             transition: opacity 0.3s ease;
         }
 
-        /* Stili specifici per l'overlay, per adattarsi alla forma */
+        /* Specific styles for the overlay to fit the shape */
         .card+.login-overlay {
             border-radius: 15px;
         }
@@ -461,14 +478,14 @@
             font-size: 1.5rem;
         }
 
-        /* L'hover sul WRAPPER rende visibile l'overlay */
+        /* Hovering on the WRAPPER makes the overlay visible */
         .lock-wrapper:hover>.login-overlay {
             opacity: 1;
             pointer-events: auto;
-            /* L'overlay diventa interattivo SOLO quando visibile */
+            /* The overlay becomes interactive ONLY when visible */
         }
 
-        /* ... Mantieni qui gli altri stili per .auth-card e .discord-login-btn ... */
+        /* ... Keep other styles for .auth-card and .discord-login-btn here ... */
         .auth-card {
             background: rgba(23, 25, 35, 0.5);
             backdrop-filter: blur(10px);
@@ -543,6 +560,94 @@
             pointer-events: none;
             user-select: none;
         }
+
+        .glow-fruit {
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.6), inset 0 0 10px rgba(255, 193, 7, 0.4);
+            border-color: rgba(255, 193, 7, 0.8) !important;
+            animation: fruit-pulse 2s infinite alternate;
+        }
+
+        .glow-gem {
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6), inset 0 0 10px rgba(0, 255, 136, 0.4);
+            border-color: rgba(0, 255, 136, 0.8) !important;
+            animation: gem-pulse 2s infinite alternate;
+        }
+
+        @keyframes fruit-pulse {
+            from {
+                box-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+                transform: scale(1);
+            }
+
+            to {
+                box-shadow: 0 0 18px rgba(255, 193, 7, 0.8);
+                transform: scale(1.02);
+            }
+        }
+
+        @keyframes gem-pulse {
+            from {
+                box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+                transform: scale(1);
+            }
+
+            to {
+                box-shadow: 0 0 18px rgba(0, 255, 136, 0.8);
+                transform: scale(1.02);
+            }
+        }
+
+        .discovery-run-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .discovery-run-box:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .donation-card {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .donation-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        .support-btn-hero {
+            background: linear-gradient(45deg, #ffca28, #ff8f00);
+            border: none;
+            color: #1a1a1a;
+            font-weight: 900;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 20px rgba(255, 143, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .support-btn-hero:hover {
+            background: linear-gradient(45deg, #ffca28, #ffb300);
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 143, 0, 0.6);
+        }
+
+        @keyframes glow-pulse {
+            from {
+                box-shadow: 0 0 10px rgba(255, 143, 0, 0.4);
+            }
+
+            to {
+                box-shadow: 0 0 25px rgba(255, 143, 0, 0.7);
+            }
+        }
+
         .form-control {
             background: rgba(0, 0, 0, 0.3) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -584,9 +689,35 @@
                 </div>
                 <nav class="navbar navbar-expand-lg navbar-dark ">
                     <div class="container-fluid d-flex justify-content-center gap-3">
-                        <a class="btn btn-warning support-btn" href="https://buymeacoffee.com/1vcian" target="_blank">
-                            ☕ Support the project, buy me a coffee!
+                        <a class="btn btn-warning support-btn pulse" href="https://buymeacoffee.com/1vcian"
+                            target="_blank" style="
+                            background: linear-gradient(45deg, #ffca28, #ff8f00);
+                            border: none;
+                            color: #1a1a1a;
+                            font-weight: 800;
+                            font-size: 1.2rem;
+                            box-shadow: 0 0 20px rgba(255, 160, 0, 0.4);
+                            padding: 12px 25px;
+                            animation: pulse-gold 2s infinite;
+                        ">
+                            ☕ Support me with a coffee!
                         </a>
+                        <style>
+                            @keyframes pulse-gold {
+                                0% {
+                                    box-shadow: 0 0 0 0 rgba(255, 160, 0, 0.7);
+                                }
+
+                                70% {
+                                    box-shadow: 0 0 0 15px rgba(255, 160, 0, 0);
+                                }
+
+                                100% {
+                                    box-shadow: 0 0 0 0 rgba(255, 160, 0, 0);
+                                }
+                            }
+                        </style>
+
                         <a class="btn btn-light support-btn" href="https://github.com/1vcian" target="_blank">
                             <i class="fab fa-github"></i> Github
                         </a>
@@ -599,6 +730,8 @@
                         </a>
                     </div>
                 </nav>
+
+
 
                 <div class=" p-4 mb-4">
                     <div class="text-center mb-4 d-flex flex-column" style="    align-items: center;">
@@ -689,21 +822,48 @@
                             Tutorial</button>
                         <div class="mt-3 d-flex flex-column align-items-center">
                             <input type="file" id="savegameImport" style="display: none;" accept=".json">
-                            <button id="importSaveBtn" class="btn btn-success btn-lg" style="
-                    color: whitesmoke;
-                    font-size: 1.2rem;
-                    font-weight: 600;
-                    width: fit-content;
-                    background: linear-gradient(45deg, #2ecc71, #27ae60);
-                    border: none;
-                    border-radius: 12px;
-                    padding: 10px 20px;
-                    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
-                    transition: all 0.3s ease;">
-                                <i class="fas fa-file-import me-2"></i> Import Savegame (.json)
+                            <button id="importSaveBtn" class="btn btn-success btn-lg px-5 py-3" style="
+                                color: whitesmoke;
+                                font-size: 1.5rem;
+                                font-weight: 800;
+                                width: fit-content;
+                                background: linear-gradient(45deg, #27ae60, #2ecc71);
+                                border: 4px solid rgba(255,255,255,0.2);
+                                border-radius: 20px;
+                                box-shadow: 0 10px 40px rgba(46, 204, 113, 0.5), inset 0 0 15px rgba(255,255,255,0.2);
+                                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                                animation: pulse-green 3s infinite;
+                            ">
+                                <i class="fas fa-file-import me-3"></i> AUTO-FILL EVERYTHING: Import Savegame (.json)
                             </button>
-                            <small class="text-white-50 mt-2">Select your savegame.json file to auto-fill all
-                                fields</small>
+                            <style>
+                                @keyframes pulse-green {
+                                    0% {
+                                        transform: scale(1);
+                                        box-shadow: 0 10px 40px rgba(46, 204, 113, 0.5);
+                                    }
+
+                                    50% {
+                                        transform: scale(1.05);
+                                        box-shadow: 0 15px 50px rgba(46, 204, 113, 0.8);
+                                    }
+
+                                    100% {
+                                        transform: scale(1);
+                                        box-shadow: 0 10px 40px rgba(46, 204, 113, 0.5);
+                                    }
+                                }
+
+                                #importSaveBtn:hover {
+                                    transform: scale(1.1) rotate(-1deg);
+                                    filter: brightness(1.2);
+                                }
+                            </style>
+                            <div class="mt-3 text-white fw-bold" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                <i class="fas fa-magic me-1 text-warning"></i> Skip the manual work! Click here to load
+                                your data.
+                            </div>
+
                         </div>
                     </div>
 
@@ -730,10 +890,12 @@
     display: block;
     width: 30%;" src="./src/fileManager.png" alt="fileManager" class="img-fluid"></li>
                                 <li class="list-group-item">2. Navigate to the following directory:
-                                    <code>/sdcard/Android/data/com.hwqgrhhjfd.idlefastfood/files</code></li>
+                                    <code>/sdcard/Android/data/com.hwqgrhhjfd.idlefastfood/files</code>
+                                </li>
                                 <li class="list-group-item">3. Inside, you'll find several save files named
                                     <code>savegame.json</code>. Open the one with the most recent modification date with
-                                    your favourite text editor, i use this one.</li>
+                                    your favourite text editor, i use this one.
+                                </li>
                                 <li class="list-group-item"><img style="margin: 0 auto;
     display: block;
     width: 30%;" src="./src/editor.png" alt="editor" class="img-fluid"></li>
@@ -778,7 +940,8 @@
                                     random)</i>
                                 <li class="list-group-item">5. Copy the <strong>seed</strong> number for each
                                     <code>ChestId</code> and <code>EggRarity</code> and paste it into the corresponding
-                                    field on this page.</li>
+                                    field on this page.
+                                </li>
                                 <li class="list-group-item">6. Once you've entered your seeds, you'll be able to
                                     simulate opening your chests and see what items you'll get!</li>
                             </ol>
@@ -804,7 +967,8 @@
                                         src="./src/ios/ios_3.jpeg" alt="iTunes Backup" class="img-fluid"></li>
                                 <li class="list-group-item">4. After the backup is completed, download
                                     <strong>iMazing</strong>, open it, go to the <strong>Backups</strong> tab, and
-                                    select the backup you created.</li>
+                                    select the backup you created.
+                                </li>
                                 <li class="list-group-item"><img style="margin: 0 auto; display: block; width: 50%;"
                                         src="./src/ios/ios_4.jpeg" alt="iMazing Backups" class="img-fluid"></li>
                                 <li class="list-group-item">5. Find the <strong>Apps</strong> section and wait for it to
@@ -836,19 +1000,54 @@
                 </div>
 
 
-                <div class="card p-4 mb-4 text-center">
+                <div class="card p-4 mb-5 text-center donation-card border-0 shadow-lg rounded-4">
                     <div class="card-body">
-                        <p class="mb-0 fw-bold">This is a totally free and independent project that required a lot of
-                            research and development.</p>
-                        <p class="fw-bold"> If you find it useful and want to help keep it running, please consider
-                            supporting me (I wont add ADS 🤓).</p>
-                        <p class="mt-2 mb-0 ">Tutorials for both Android and iOS are now available! Use the buttons
-                            above to switch between them.</p>
-                        <p>If you find any bug or have any suggestion, question or need help,
-                            contact me in the <a href="https://t.me/+WlOeef4P6uczMjBk" target="_blank"><strong>Telegram
-                                    Group</strong></a> </p>
+                        <h2 class="text-warning fw-bold mb-3"><i class="fas fa-mug-hot me-2 text-warning pulse"></i>
+                            BREWING MORE FEATURES</h2>
+                        <p class="lead text-white-50 mb-4" style="max-width: 800px; margin: 0 auto;">
+                            This tool is a labor of love, kept 100% free and AD-FREE for everyone.
+                            If it helped you find that mythic item or fruit, consider fueling the next update with a
+                            coffee! ☕️✨
+                        </p>
+
+                        <div class="row justify-content-center mb-5 mt-4">
+                            <div class="col-md-7">
+                                <div class="d-flex justify-content-between mb-2 px-2">
+                                    <span class="text-white small fw-bold">DEVELOPER MOOD: <span class="text-info">HAPPY
+                                            & CODING</span></span>
+                                    <span class="text-warning small fw-bold">COFFEE TANK: 68%</span>
+                                </div>
+                                <div class="progress bg-black bg-opacity-50"
+                                    style="height: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); padding: 3px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                                        role="progressbar" style="width: 68%; border-radius: 10px;" aria-valuenow="68"
+                                        aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="text-white-50 mt-3 d-block italic">"No pressure, just love. Every coffee
+                                    helps me stay awake for the next RNG research!"</small>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-3 flex-wrap">
+                            <a class="btn btn-warning btn-lg px-5 py-3 support-btn-hero"
+                                href="https://buymeacoffee.com/1vcian" target="_blank">
+                                <i class="fas fa-coffee me-2"></i> SUPPORT ME WITH A COFFEE
+                            </a>
+                            <a class="btn btn-outline-light btn-lg px-4 py-3" href="https://t.me/+WlOeef4P6uczMjBk"
+                                target="_blank" style="border-radius: 12px; border-width: 2px;">
+                                <i class="fab fa-telegram me-2"></i> JOIN TELEGRAM
+                            </a>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
+                            <p class="text-white-50 small mb-0">
+                                <i class="fas fa-shield-alt me-1"></i> No ADS. No tracking. Just pure Eatventure
+                                simulation.
+                            </p>
+                        </div>
                     </div>
                 </div>
+
             </div>
             <div id="auth-container" class="container mb-4" style="display:none">
                 <div id="view-logged-out">
@@ -895,8 +1094,67 @@
 
 
 
+            <!-- Event Tools Hero Section -->
+            <div class="row mt-4 mb-2 justify-content-center">
+                <div class="col-12 col-xl-9">
+                    <div class="card garden-card border-0 shadow-lg overflow-hidden rounded-4" data-card-id="discovery">
+                        <div class="row g-0 align-items-stretch">
+                            <div
+                                class="col-md-4 d-flex align-items-center justify-content-center p-4 bg-black bg-opacity-25">
+                                <div class="text-center">
+                                    <img src="./src/DiscoveryIcon.png" class="mb-3 pulse"
+                                        style="width: 110px; height: 110px; filter: drop-shadow(0 0 15px rgba(46, 204, 113, 0.4));">
+                                    <h3 class="text-warning fw-bold mb-0">DISCOVERY</h3>
+                                    <p class="text-success small fw-bold mt-1">GARDE EVENT TOOL</p>
+                                </div>
+                            </div>
+                            <div class="col-md-8 p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h4 class="text-white mb-1"><i
+                                                class="fas fa-magic me-2 text-success"></i>Predict All Rewards</h4>
+                                        <p class="text-white-50 small mb-0">Enter your seed to map out all fruits and
+                                            gems in the current event.</p>
+                                    </div>
+                                    <span
+                                        class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2">
+                                        <i class="fas fa-star me-1"></i> Featured
+                                    </span>
+                                </div>
+
+                                <div class="row g-3 align-items-center">
+                                    <div class="col-md-7">
+                                        <div class="input-group" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                                            <span class="input-group-text bg-success text-white border-0 px-3">
+                                                <i class="fas fa-key"></i>
+                                            </span>
+                                            <input type="number"
+                                                class="seed-input form-control border-0 bg-dark text-white p-3"
+                                                placeholder="DiscoveryEventSavegame">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 d-flex gap-2">
+                                        <button class="btn btn-success flex-grow-1 py-3 fw-bold"
+                                            data-action="discovery-map"
+                                            style="background: linear-gradient(135deg, #2ecc71, #27ae60); border: none; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);">
+                                            <i class="fas fa-map-marked-alt me-2"></i>SHOW MAP
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm px-3" data-action="clear">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="results-container mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card p-4 mb-4 text-white"
                 style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+
                 <h4 class="text-center mb-3"><i class="fas fa-egg me-2"></i>Global Egg Counter</h4>
                 <p class="text-center small mb-3">Enter the number of eggs you currently have in the game. The Pet Box
                     counter will start from these values.</p>
@@ -931,6 +1189,9 @@
             </div>
 
             <div class="row g-4 pb-5 mb-5" id="mainGrid" style="justify-content: center;">
+
+
+
                 <div class="col-12 col-md-4">
                     <div class="card chest-card h-100" data-card-id="small">
                         <div class="chest-header">
@@ -1107,7 +1368,8 @@
                                         class="fas fa-search me-1"></i>Find Item</button>
                                 <button class="btn btn-danger" data-action="toggle-what-if"><i
                                         class="fas fa-question-circle me-1"></i>What If</button>
-                                <button class="btn btn-info" data-action="smart-xp" style="
+                                <div class="position-relative d-inline-block" style="width: fit-content;">
+                                    <button class="btn btn-info" data-action="smart-xp" style="
                            
             color: whitesmoke;
             font-size: xx-large;
@@ -1124,6 +1386,34 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.3),
                         inset 0 0 10px rgba(255,255,255,0.2);
                            "><i class="fas fa-tachometer-alt me-1"></i>Smart XP</button>
+                                    <div class="smart-xp-lock-overlay" style="
+                                        position: absolute;
+                                        top: -8px;
+                                        left: -15px;
+                                        width: calc(100% + 30px);
+                                        height: calc(100% + 16px);
+                                        background: rgba(15, 15, 15, 0.75);
+                                        border-radius: 18px;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        z-index: 9999;
+                                        border: 2px solid #ff4d4d;
+                                        box-shadow: 0 0 15px rgba(255, 77, 77, 0.6);
+                                        padding: 5px 15px;
+                                    ">
+                                        <i class="fas fa-lock text-danger me-2"
+                                            style="font-size: 1.5rem; animation: pulse 1.5s infinite;"></i>
+                                        <div class="text-start" style="line-height: 1.15;">
+                                            <span class="text-white fw-bold d-block"
+                                                style="font-size: 0.62rem; letter-spacing: 0.3px; white-space: normal;">BLOCKED
+                                                BY LESSMORE<br>Community Management</span>
+                                            <span class="text-white-50"
+                                                style="font-size: 0.55rem; display: block; margin-top: 1px;">Feature
+                                                removed by request</span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <button class="btn btn-success" data-action="smart-find" style="
                            
             color: whitesmoke;
@@ -1190,7 +1480,8 @@
                                         class="fas fa-search me-1"></i>Find Item</button>
                                 <button class="btn btn-danger" data-action="toggle-what-if"><i
                                         class="fas fa-question-circle me-1"></i>What If</button>
-                                <button class="btn btn-info" data-action="smart-xp" style="
+                                <div class="position-relative d-inline-block" style="width: fit-content;">
+                                    <button class="btn btn-info" data-action="smart-xp" style="
                            
             color: whitesmoke;
             font-size: xx-large;
@@ -1207,6 +1498,34 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.3),
                         inset 0 0 10px rgba(255,255,255,0.2);
                            "><i class="fas fa-tachometer-alt me-1"></i>Smart XP</button>
+                                    <div class="smart-xp-lock-overlay" style="
+                                        position: absolute;
+                                        top: -8px;
+                                        left: -15px;
+                                        width: calc(100% + 30px);
+                                        height: calc(100% + 16px);
+                                        background: rgba(15, 15, 15, 0.75);
+                                        border-radius: 18px;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        z-index: 9999;
+                                        border: 2px solid #ff4d4d;
+                                        box-shadow: 0 0 15px rgba(255, 77, 77, 0.6);
+                                        padding: 5px 15px;
+                                    ">
+                                        <i class="fas fa-lock text-danger me-2"
+                                            style="font-size: 1.5rem; animation: pulse 1.5s infinite;"></i>
+                                        <div class="text-start" style="line-height: 1.15;">
+                                            <span class="text-white fw-bold d-block"
+                                                style="font-size: 0.62rem; letter-spacing: 0.3px; white-space: normal;">BLOCKED
+                                                BY LESSMORE<br>Community Management</span>
+                                            <span class="text-white-50"
+                                                style="font-size: 0.55rem; display: block; margin-top: 1px;">Feature
+                                                removed by request</span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <button class="btn btn-success" data-action="smart-find" style="
                              
             color: whitesmoke;
@@ -1230,53 +1549,7 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-4 debug">
-                    <div class="card chest-card h-100" data-card-id="discovery">
-                        <div class="chest-header">
-                            <h5 class="mb-1"><img src="./src/DiscoveryIcon.png" class="me-2"
-                                    style="width: 60px; height: 60px;">Discovery Event</h5>
-                            <div class="d-flex justify-content-between">
-                                <small class="counter">Level: 0</small>
-                                <small class="xp-counter">Fruits: 0</small>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="input-group mb-3">
-                                <span class="input-group-text"><i class="fas fa-seedling"></i> Seed</span>
-                                <input type="number" class="seed-input form-control" placeholder="DiscoveryEventSavegame">
-                            </div>
-                            <div class="input-group mb-3">
-                                <span class="input-group-text"><i class="fas fa-layer-group"></i> Level</span>
-                                <select class="level-input form-select">
-                                    <option value="0">Level 0 (3x3 - 3 Fruits)</option>
-                                    <option value="1">Level 1 (4x4 - 4 Fruits)</option>
-                                    <option value="2">Level 2 (5x5 - 5 Fruits)</option>
-                                    <option value="3">Level 3 (5x6 - 6 Fruits)</option>
-                                    <option value="4">Level 4 (5x7 - 6 Fruits)</option>
-                                </select>
-                            </div>
-                            <div class="input-group mb-3">
-                                <span class="input-group-text"><i class="fas fa-apple-alt"></i> Found</span>
-                                <input type="number" class="fruits-found-input form-control"
-                                    placeholder="Fruits already found" value="0" min="0" max="6">
-                            </div>
-                            <div class="input-group mb-3">
-                                <span class="input-group-text"><i class="fas fa-redo"></i> RNG Offset</span>
-                                <input type="number" class="rng-offset-input form-control"
-                                    placeholder="Manual Roll Shift" value="0">
-                            </div>
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                <button class="btn btn-success w-100" data-action="discovery-map"
-                                    style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); border: none; font-weight: bold; font-size: 1.1em;">
-                                    <i class="fas fa-map-marked-alt me-2"></i>SHOW MAP
-                                </button>
-                                <button class="btn btn-danger btn-sm" data-action="clear"><i
-                                        class="fas fa-trash me-1"></i>Clear</button>
-                            </div>
-                            <div class="results-container"></div>
-                        </div>
-                    </div>
-                </div>
+
 
                 <div class="col-12 col-md-4">
                     <div class="card chest-card h-100" data-card-id="event_SeaPort">
@@ -1680,12 +1953,30 @@
         </div>
 
         <div class="search-overlay" id="discoveryModal">
-            <div class="search-modal" style="max-width: 900px;">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="mb-0"><i class="fas fa-map-marked-alt me-2 text-success"></i>Discovery Event Map</h4>
+            <div class="search-modal" style="max-width: 950px; border: 2px solid #2ecc71;">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <h4 class="mb-0 text-success fw-bold"><i class="fas fa-map-marked-alt me-2"></i>Discovery Event Map
+                    </h4>
+
+                    <div
+                        class="d-flex align-items-center gap-3 bg-dark bg-opacity-50 p-2 rounded-3 border border-secondary">
+                        <span class="text-white small fw-bold"><i class="fas fa-filter me-1 text-success"></i> LEVEL
+                            FILTER:</span>
+                        <select id="discoveryLevelFilter" class="form-select form-select-sm bg-dark text-white border-0"
+                            style="width: 140px; cursor: pointer;">
+                            <option value="all">Show All Levels</option>
+                            <option value="0">Level 0</option>
+                            <option value="1">Level 1</option>
+                            <option value="2">Level 2</option>
+                            <option value="3">Level 3</option>
+                            <option value="4">Level 4</option>
+                        </select>
+                    </div>
+
                     <button class="btn-close btn-close-white"
                         onclick="document.getElementById('discoveryModal').style.display = 'none';"></button>
                 </div>
+
                 <div id="discoveryModalContent" class="d-flex flex-wrap gap-4 justify-content-center"
                     style="max-height: 70vh; overflow-y: auto; padding: 10px;">
                     <!-- Grids will be injected here -->

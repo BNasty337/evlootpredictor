@@ -2163,12 +2163,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.openGlobalSearch = openGlobalSearch;
     window.closeSearchModal = closeSearchModal;
     // ==========================================================
-
-    // Debug Mode Check
+ 
+    // Debug & Bypass Mode Check
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('debug') === 'true') {
         document.querySelectorAll('.debug').forEach(el => {
             el.style.display = 'block';
+        });
+    }
+    if (urlParams.get('debug') === 'true' || urlParams.get('bypass') === 'true') {
+        document.querySelectorAll('.smart-xp-lock-overlay').forEach(el => {
+            el.remove();
         });
     }
 
