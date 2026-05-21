@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/:path(.*)",
-      "destination": "https://1vcian.github.io/eatventure-vercel/:path",
+      "destination": "https://1vcian.github.io/ev/:path",
       "permanent": true
     }
   ]
