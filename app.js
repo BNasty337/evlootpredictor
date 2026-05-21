@@ -897,7 +897,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Aggiungi un event listener che si attiverà una sola volta
         newStartBtn.addEventListener('click', () => {
-            performSmartXpSearch(currentSearchCard);
+            alert("Sorry, this feature was removed.");
+            //performSmartXpSearch(currentSearchCard);
         }, { once: true });
     }
     function getAvailableItemsForChest(chestType, eventType = null) {
@@ -1929,7 +1930,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openGlobalSearch = openGlobalSearch;
     window.closeSearchModal = closeSearchModal;
     // ==========================================================
- 
+
     // Debug & Bypass Mode Check
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('debug') === 'true') {
