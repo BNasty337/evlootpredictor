@@ -671,6 +671,26 @@
             border-color: rgba(255, 255, 255, 0.3) !important;
             box-shadow: none !important;
         }
+
+        /* iOS / touch optimizations: make buttons more responsive on mobile Safari */
+        button, .btn, a.btn {
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        html, body {
+            -webkit-touch-callout: none;
+        }
+
+        /* Reduce hover-only styling interference on touch devices */
+        @media (hover: none) {
+            .btn:hover {
+                transform: none !important;
+                box-shadow: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -1346,32 +1366,6 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.3),
                         inset 0 0 10px rgba(255,255,255,0.2);
                            "><i class="fas fa-tachometer-alt me-1"></i>Smart XP</button>
-                                    <div class="smart-xp-lock-overlay" style="
-                                        position: absolute;
-                                        top: -5px;
-                                        left: -5px;
-                                        width: calc(100% + 10px);
-                                        height: calc(100% + 10px);
-                                        background: rgba(15, 15, 15, 0.65);
-                                        border-radius: 18px;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        z-index: 9999;
-                                        border: 2px solid #ff4d4d;
-                                        box-shadow: 0 0 15px rgba(255, 77, 77, 0.6);
-                                        padding: 5px 15px;
-                                    ">
-                                        <i class="fas fa-lock text-danger me-2"
-                                            style="font-size: 1.5rem; animation: pulse 1.5s infinite;"></i>
-                                        <div class="text-start" style="line-height: 1.1;">
-                                            <span class="text-white fw-bold d-block"
-                                                style="font-size: 0.75rem; letter-spacing: 0.5px;">BLOCKED BY
-                                                LESSMORE Community Management</span>
-                                            <span class="text-white-50" style="font-size: 0.65rem;">Feature removed by
-                                                request</span>
-                                        </div>
-                                    </div>
                                 </div>
                                 <button class="btn btn-success" data-action="smart-find" style="
                            
@@ -1457,32 +1451,6 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.3),
                         inset 0 0 10px rgba(255,255,255,0.2);
                            "><i class="fas fa-tachometer-alt me-1"></i>Smart XP</button>
-                                    <div class="smart-xp-lock-overlay" style="
-                                        position: absolute;
-                                        top: -5px;
-                                        left: -5px;
-                                        width: calc(100% + 10px);
-                                        height: calc(100% + 10px);
-                                        background: rgba(15, 15, 15, 0.65);
-                                        border-radius: 18px;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        z-index: 9999;
-                                        border: 2px solid #ff4d4d;
-                                        box-shadow: 0 0 15px rgba(255, 77, 77, 0.6);
-                                        padding: 5px 15px;
-                                    ">
-                                        <i class="fas fa-lock text-danger me-2"
-                                            style="font-size: 1.5rem; animation: pulse 1.5s infinite;"></i>
-                                        <div class="text-start" style="line-height: 1.1;">
-                                            <span class="text-white fw-bold d-block"
-                                                style="font-size: 0.75rem; letter-spacing: 0.5px;">BLOCKED BY
-                                                LESSMORE Community Management</span>
-                                            <span class="text-white-50" style="font-size: 0.65rem;">Feature removed by
-                                                request</span>
-                                        </div>
-                                    </div>
                                 </div>
                                 <button class="btn btn-success" data-action="smart-find" style="
                              

@@ -79,3 +79,20 @@ But... I don't really play Eatventure anymore! The project was an incredibly fun
 All that obfuscation and the login system are now pointless. Rather than let this tool rot in a private repo, I've decided to make it fully open-source. If you still play the game and want to take this project further, please do! Fork it, fix my messy code, add new features, whatever you want.
 
 Consider it a gift to the community.
+
+## 🔧 Smart XP Enabled Locally (what I changed)
+
+I removed the UI lock overlays that previously blocked the `Smart XP` buttons, and added a few small CSS tweaks to improve touch behavior on mobile Safari (iOS). These changes are saved in `index.html` so the feature remains available every time you open the project locally.
+
+## 📱 How to run on iOS (Safari)
+
+- Serve the folder with a local HTTP server (recommended). From the project root run:
+
+```powershell
+python -m http.server 8000
+```
+
+- On your iPhone/iPad, open Safari and visit `http://<your-pc-ip>:8000/` (replace `<your-pc-ip>` with your machine's LAN IP). File:// URLs often block resources on iOS, so using HTTP is necessary.
+- To add to Home Screen: open the page in Safari, tap Share → "Add to Home Screen" for an app-like experience.
+
+If you want, I can create an `index.ios.html` variant or commit these changes for you.
