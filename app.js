@@ -975,26 +975,59 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return results;
     }
+    function normalizeSmartTargets(targetItems = smartSearchTargetItems) {
+        const counts = new Map();
+        targetItems.forEach(target => {
+            const baseName = typeof target === 'string' ? target : target?.baseName;
+            const count = typeof target === 'string' ? 1 : (parseInt(target?.count, 10) || 0);
+            if (baseName && count > 0) {
+                counts.set(baseName, (counts.get(baseName) || 0) + count);
+            }
+        });
+        return Array.from(counts, ([baseName, count]) => ({ baseName, count }));
+    }
+
+    function getSmartFindQuantity(baseName) {
+        const target = smartSearchTargetItems.find(item => item.baseName === baseName);
+        return target ? target.count : 0;
+    }
+
+    function updateSmartFindQuantityDisplay(baseName) {
+        const count = getSmartFindQuantity(baseName);
+        document.querySelectorAll(`[data-smart-item="${baseName}"]`).forEach(tile => {
+            const countBadge = tile.querySelector('.smart-find-count');
+            const itemImage = tile.querySelector('.item-image');
+            const minusBtn = tile.querySelector('.smart-find-minus');
+            if (countBadge) countBadge.textContent = count;
+            itemImage?.classList.toggle('selected', count > 0);
+            if (minusBtn) minusBtn.disabled = count <= 0;
+        });
+    }
+
+    function changeSmartFindQuantity(baseName, delta) {
+        const itemIndex = smartSearchTargetItems.findIndex(item => item.baseName === baseName);
+        const currentCount = itemIndex > -1 ? smartSearchTargetItems[itemIndex].count : 0;
+        const nextCount = Math.max(0, currentCount + delta);
+
+        if (nextCount === 0) {
+            if (itemIndex > -1) smartSearchTargetItems.splice(itemIndex, 1);
+        } else if (itemIndex > -1) {
+            smartSearchTargetItems[itemIndex].count = nextCount;
+        } else {
+            smartSearchTargetItems.push({ baseName, count: nextCount });
+        }
+
+        updateSmartFindQuantityDisplay(baseName);
+        updateSmartFindButton();
+    }
+
     function selectItemForSearch(targetItem, rarity) {
         if (currentSearchMode === 'local') {
             performLocalSearch(targetItem);
         } else if (currentSearchMode === 'global') {
             performGlobalSearch(targetItem);
         } else if (currentSearchMode === 'smart') {
-            const itemIdentifier = targetItem;
-            const itemIndex = smartSearchTargetItems.indexOf(itemIdentifier);
-            const itemElement = event.target; // Get the clicked image element
-
-            if (itemIndex > -1) {
-                // Item is already selected, so unselect it
-                smartSearchTargetItems.splice(itemIndex, 1);
-                itemElement.classList.remove('selected');
-            } else {
-                // Item is not selected, so add it
-                smartSearchTargetItems.push(itemIdentifier);
-                itemElement.classList.add('selected');
-            }
-            updateSmartFindButton(); // Update the button to reflect the selection
+            changeSmartFindQuantity(targetItem, 1);
         }
     }
     function performLocalSearch(targetItem) {
@@ -1039,7 +1072,21 @@ document.addEventListener('DOMContentLoaded', () => {
             grid.innerHTML = '';
             filteredItems.forEach(item => {
                 const itemDiv = document.createElement('div'); itemDiv.className = 'col-4 col-md-3 mb-2';
-                itemDiv.innerHTML = `<div class="text-center"><img src="./src/${item.baseName}.png" alt="${item.baseName}" class="item-image pulse" onclick="selectItemForSearch('${item.baseName}')" style="width: 60px; height: 60px;"><div class="small mt-1">${item.baseName}</div></div>`;
+                if (currentSearchMode === 'smart') {
+                    const quantity = getSmartFindQuantity(item.baseName);
+                    itemDiv.innerHTML = `
+                        <div class="text-center" data-smart-item="${item.baseName}">
+                            <img src="./src/${item.baseName}.png" alt="${item.baseName}" class="item-image pulse ${quantity > 0 ? 'selected' : ''}" onclick="selectItemForSearch('${item.baseName}')" style="width: 60px; height: 60px;">
+                            <div class="small mt-1">${item.baseName}</div>
+                            <div class="d-flex justify-content-center align-items-center gap-2 mt-1">
+                                <button type="button" class="btn btn-sm btn-outline-light px-2 smart-find-minus" onclick="changeSmartFindQuantity('${item.baseName}', -1)" ${quantity <= 0 ? 'disabled' : ''}>-</button>
+                                <span class="badge bg-success smart-find-count">${quantity}</span>
+                                <button type="button" class="btn btn-sm btn-outline-light px-2" onclick="changeSmartFindQuantity('${item.baseName}', 1)">+</button>
+                            </div>
+                        </div>`;
+                } else {
+                    itemDiv.innerHTML = `<div class="text-center"><img src="./src/${item.baseName}.png" alt="${item.baseName}" class="item-image pulse" onclick="selectItemForSearch('${item.baseName}')" style="width: 60px; height: 60px;"><div class="small mt-1">${item.baseName}</div></div>`;
+                }
                 grid.appendChild(itemDiv);
             });
         };
@@ -1091,13 +1138,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function findAllPaths(startSeed, targetItems, eventType, cardId, maxLevel, vaultPercentage) {
         const MAX_DEPTH = 10;
         const solutions = [];
-        const targetSet = new Set(targetItems);
+        const targets = normalizeSmartTargets(targetItems);
+        const targetIndexByName = new Map(targets.map((target, index) => [target.baseName, index]));
+
+        if (targets.length === 0) return solutions;
 
         const queue = [{
             seed: startSeed,
             path: [],
             cost: 0,
-            foundItems: new Set()
+            foundCounts: targets.map(() => 0)
         }];
 
         const visited = new Map();
@@ -1120,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         while (queue.length > 0) {
-            const { seed, path, cost, foundItems } = queue.shift();
+            const { seed, path, cost, foundCounts } = queue.shift();
 
             if (cost >= minCostFound || path.length >= MAX_DEPTH) {
                 continue;
@@ -1129,10 +1179,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- MODIFICA: Usa la lista di livelli ottimizzati invece di un ciclo completo ---
             for (const level of relevantLevels) {
                 const result = simulateAdventureChestOpening(seed, level, eventType, vaultPercentage, cardId);
-                const newFoundItems = new Set(foundItems);
+                const newFoundCounts = [...foundCounts];
                 result.items.forEach(item => {
-                    if (targetSet.has(item.baseName)) {
-                        newFoundItems.add(item.baseName);
+                    const targetIndex = targetIndexByName.get(item.baseName);
+                    if (targetIndex !== undefined) {
+                        newFoundCounts[targetIndex] = Math.min(targets[targetIndex].count, newFoundCounts[targetIndex] + 1);
                     }
                 });
 
@@ -1140,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newCost = cost + (1 - keysFound);
                 const newPath = [...path, { level: level, items: result.items }];
 
-                if (newFoundItems.size === targetSet.size) {
+                if (newFoundCounts.every((count, index) => count >= targets[index].count)) {
                     solutions.push({ path: newPath, cost: newCost });
                     minCostFound = Math.min(minCostFound, newCost);
                 }
@@ -1148,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nextSeed = result.nextSeed;
                 const pathLength = newPath.length;
 
-                const frozenFoundSet = [...newFoundItems].sort().join(',');
+                const frozenFoundSet = newFoundCounts.join('|');
                 const visitedForSeed = visited.get(nextSeed) || new Map();
                 const existingEntry = visitedForSeed.get(frozenFoundSet);
 
@@ -1160,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             seed: nextSeed,
                             path: newPath,
                             cost: newCost,
-                            foundItems: newFoundItems
+                            foundCounts: newFoundCounts
                         });
                     }
                 }
@@ -1173,7 +1224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Replace the old formatPath function with this new, more detailed formatter
     function formatPathWithItems(path, targetItems) {
         if (!path || path.length === 0) return "No actions required.";
-        const targetSet = new Set(targetItems);
+        const targetSet = new Set(normalizeSmartTargets(targetItems).map(target => target.baseName));
 
         let html = '<div class="list-group">';
         path.forEach((step, index) => {
@@ -1182,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isTarget = targetSet.has(item.baseName);
                 const formattedItem = formatItemDisplay(item);
                 return isTarget
-                    ? formattedItem.replace('class="item-card', 'class="item-card')
+                    ? formattedItem.replace('class="item-card', 'class="item-card selected')
                     : formattedItem;
             }).join('');
 
@@ -1245,13 +1296,15 @@ document.addEventListener('DOMContentLoaded', () => {
             startSeed = simulateAdventureChestOpening(startSeed, action.level, action.eventType, action.vaultPercentage, action.type).nextSeed;
         });
 
-        const allSolutions = findAllPaths(startSeed, targetItems, eventType, cardId, userLevel, vaultPercentage);
+        const targets = normalizeSmartTargets(targetItems);
+        const targetSummary = targets.map(target => `${target.count}x ${target.baseName}`).join(', ');
+        const allSolutions = findAllPaths(startSeed, targets, eventType, cardId, userLevel, vaultPercentage);
 
         if (allSolutions.length === 0) {
             const searchLimit = findAllPaths.toString().match(/MAX_DEPTH = (\d+)/)[1];
             resultsContent.innerHTML = `<div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i><strong>Path Not Found</strong><br>
-            No path  could be found within ${searchLimit} openings up to Level ${userLevel}.
+            No path could find the requested items (${targetSummary}) within ${searchLimit} openings up to Level ${userLevel}.
         </div>`;
         } else {
             const shortestSolution = allSolutions.reduce((a, b) => a.path.length <= b.path.length ? a : b);
@@ -1261,16 +1314,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const areSame = JSON.stringify(shortestSolution.path.map(p => p.level)) === JSON.stringify(cheapestSolution.path.map(p => p.level));
             if (areSame) {
                 html += `<div class="alert alert-success">
-                    <h5><i class="fas fa-shoe-prints me-2"></i>Shortest Path (Found All Items)</h5>
+                    <h5><i class="fas fa-shoe-prints me-2"></i>Shortest Path (Found Requested Items)</h5>
+                    Targets: <strong>${targetSummary}</strong><br>
                     Found in <strong>${shortestSolution.path.length}</strong> openings. (Net cost: <strong>${shortestSolution.cost}</strong> chests)
-                    <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(shortestSolution.path, targetItems)}</div>
+                    <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(shortestSolution.path, targets)}</div>
                  </div>`;
             }
             else {
                 html += `<div class="alert alert-info">
-                        <h5><i class="fas fa-coins me-2"></i>Most Cost-Effective Path (Found All Items)</h5>
+                        <h5><i class="fas fa-coins me-2"></i>Most Cost-Effective Path (Found Requested Items)</h5>
+                        Targets: <strong>${targetSummary}</strong><br>
                         Net cost: <strong>${cheapestSolution.cost}</strong> chests. (Requires <strong>${cheapestSolution.path.length}</strong> openings)
-                        <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(cheapestSolution.path, targetItems)}</div>
+                        <div class="mt-2 p-2 bg-dark rounded">${formatPathWithItems(cheapestSolution.path, targets)}</div>
                      </div>`;
             }
             resultsContent.innerHTML = html;
@@ -1281,10 +1336,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSmartFindButton() {
         const startBtn = document.getElementById('startSmartFindSearchBtn');
+        const totalTargets = normalizeSmartTargets().reduce((sum, target) => sum + target.count, 0);
         if (startBtn) {
-            if (smartSearchTargetItems.length > 0) {
+            if (totalTargets > 0) {
                 startBtn.disabled = false;
-                startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Find ${smartSearchTargetItems.length} Item(s)`;
+                startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Find ${totalTargets} Item(s)`;
             } else {
                 startBtn.disabled = true;
                 startBtn.innerHTML = `<i class="fas fa-brain me-1"></i> Select Items to Find`;
@@ -1407,6 +1463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSearchMode = 'smart';
         currentSearchCard = cardId;
         // Reset selection
+        smartSearchTargetItems = [];
         const [chestType, eventType] = cardId.split('_');
 
         const availableItems = getAvailableItemsForChest(chestType, eventType);
@@ -1425,8 +1482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         startBtn.parentNode.replaceChild(newStartBtn, startBtn);
 
         newStartBtn.addEventListener('click', () => {
-            if (smartSearchTargetItems.length > 0) {
-                performSmartSearch(smartSearchTargetItems, currentSearchCard);
+            const targets = normalizeSmartTargets();
+            if (targets.length > 0) {
+                performSmartSearch(targets, currentSearchCard);
             }
         });
 
@@ -1926,6 +1984,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================== FIX FOR SCOPE ERRORS ==================
     // This makes the functions available globally so onclick attributes in the HTML can find them.
     window.selectItemForSearch = selectItemForSearch;
+    window.changeSmartFindQuantity = changeSmartFindQuantity;
     window.openGlobalSearch = openGlobalSearch;
     window.closeSearchModal = closeSearchModal;
     // ==========================================================
